@@ -227,7 +227,6 @@ Not yet implemented:
 
 ## Next Steps
 
-Recommended next work:
 
 1. Build `Ticketing.Rest` as a thin minimal API adapter over `Ticketing.Domain`.
 2. Add `DomainResult` to HTTP response mapping.
