@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using Azure.Data.Tables;
 using Ticketing.Data.AzureStorage.Entities;
 using Ticketing.Data.AzureStorage.Internal;
 using Ticketing.Data.Models;
@@ -48,6 +50,57 @@ internal sealed class AzureUserProfileStore : IUserProfileStore
 		return response.HasValue ? response.Value!.ToRecord() : null;
 	}
 
+	public async IAsyncEnumerable<TicketUserProfile> SearchAsync(
+		string? query,
+		bool includeInactive = false,
+		int? pageSize = null,
+		[EnumeratorCancellation] CancellationToken cancellationToken = default)
+	{
+		var normalizedQuery = NormalizeOptional(query);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.UserProfilePartition()}");
+		var returned = 0;
+
+		await foreach (var entity in _clients.UserProfiles
+			.QueryAsync<UserProfileEntity>(filter, cancellationToken: cancellationToken)
+			.ConfigureAwait(false))
+		{
+			if (!includeInactive && !entity.IsActive)
+			{
+				continue;
+			}
+
+			if (!Matches(entity, normalizedQuery))
+			{
+				continue;
+			}
+
+			yield return entity.ToRecord();
+			returned++;
+
+			if (pageSize.HasValue && returned >= pageSize.Value)
+			{
+				yield break;
+			}
+		}
+	}
+
 	private static string? NormalizeOptional(string? value) =>
 		string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+	private static bool Matches(UserProfileEntity entity, string? query)
+	{
+		if (string.IsNullOrWhiteSpace(query))
+		{
+			return true;
+		}
+
+		return Contains(entity.UserOid, query)
+			|| Contains(entity.DisplayName, query)
+			|| Contains(entity.Email, query)
+			|| Contains(entity.Department, query)
+			|| Contains(entity.JobTitle, query);
+	}
+
+	private static bool Contains(string? value, string query) =>
+		value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
 }

@@ -8,6 +8,8 @@ public static class TicketingAuthPolicies
 
 	public const string WorkTicket = "Ticketing.WorkTicket";
 
+	public const string ManageTeams = "Ticketing.ManageTeams";
+
 	public const string ManageTaxonomy = "Ticketing.ManageTaxonomy";
 
 	public const string Admin = "Ticketing.Admin";

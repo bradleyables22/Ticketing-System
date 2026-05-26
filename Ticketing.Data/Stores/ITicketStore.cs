@@ -16,6 +16,8 @@ public interface ITicketStore
 
 	Task<TicketRecord> AssignTeamAsync(AssignTicketTeamRequest request, CancellationToken cancellationToken = default);
 
+	Task<TicketRecord> SetStatusAsync(SetTicketStatusRequest request, CancellationToken cancellationToken = default);
+
 	Task<TicketRecord> CloseAsync(CloseTicketRequest request, CancellationToken cancellationToken = default);
 
 	Task<TicketRecord> ReopenAsync(ReopenTicketRequest request, CancellationToken cancellationToken = default);

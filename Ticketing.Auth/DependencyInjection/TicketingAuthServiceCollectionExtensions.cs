@@ -77,6 +77,12 @@ public static class TicketingAuthServiceCollectionExtensions
 					options.Roles.Manager,
 					options.Roles.Admin));
 
+		builder.AddPolicy(TicketingAuthPolicies.ManageTeams, policy =>
+			policy.RequireAuthenticatedUser()
+				.RequireRole(
+					options.Roles.Manager,
+					options.Roles.Admin));
+
 		builder.AddPolicy(TicketingAuthPolicies.ManageTaxonomy, policy =>
 			policy.RequireAuthenticatedUser()
 				.RequireRole(

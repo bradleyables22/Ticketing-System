@@ -74,6 +74,19 @@ public sealed record AssignTicketTeamRequest
 	public string? ExpectedETag { get; init; }
 }
 
+public sealed record SetTicketStatusRequest
+{
+	public required string TicketId { get; init; }
+
+	public required string ChangedByOid { get; init; }
+
+	public TicketStatus Status { get; init; }
+
+	public string? Reason { get; init; }
+
+	public string? ExpectedETag { get; init; }
+}
+
 public sealed record CloseTicketRequest
 {
 	public required string TicketId { get; init; }

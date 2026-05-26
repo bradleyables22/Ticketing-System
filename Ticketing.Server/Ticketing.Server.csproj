@@ -4,6 +4,12 @@
     <ProjectReference Include="..\Ticketing.Data\Ticketing.Data.csproj" />
     <ProjectReference Include="..\Ticketing.Auth\Ticketing.Auth.csproj" />
     <ProjectReference Include="..\Ticketing.Domain\Ticketing.Domain.csproj" />
+    <ProjectReference Include="..\Ticketing.Rest\Ticketing.Rest.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
   </ItemGroup>
 
   <PropertyGroup>

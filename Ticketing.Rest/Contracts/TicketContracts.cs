@@ -1,8 +1,8 @@
 using Ticketing.Data.Models;
 
-namespace Ticketing.Domain.Models;
+namespace Ticketing.Rest.Contracts;
 
-public sealed record CreateTicketCommand
+public sealed record CreateTicketHttpRequest
 {
 	public required string Title { get; init; }
 
@@ -19,10 +19,8 @@ public sealed record CreateTicketCommand
 	public IReadOnlyCollection<string> Tags { get; init; } = Array.Empty<string>();
 }
 
-public sealed record UpdateTicketCommand
+public sealed record UpdateTicketHttpRequest
 {
-	public required string TicketId { get; init; }
-
 	public string? ExpectedETag { get; init; }
 
 	public string? Title { get; init; }
@@ -42,32 +40,15 @@ public sealed record UpdateTicketCommand
 	public IReadOnlyCollection<string>? Tags { get; init; }
 }
 
-public sealed record AddTicketNoteCommand
+public sealed record AddTicketNoteHttpRequest
 {
-	public required string TicketId { get; init; }
-
 	public required string Body { get; init; }
 
 	public bool IsInternal { get; init; }
 }
 
-public sealed record UploadTicketAttachmentCommand
+public sealed record AssignTicketHttpRequest
 {
-	public required string TicketId { get; init; }
-
-	public required string OriginalFileName { get; init; }
-
-	public string? ContentType { get; init; }
-
-	public required Stream Content { get; init; }
-
-	public long? SizeBytes { get; init; }
-}
-
-public sealed record AssignTicketCommand
-{
-	public required string TicketId { get; init; }
-
 	public string? AssigneeOid { get; init; }
 
 	public string? Reason { get; init; }
@@ -75,10 +56,8 @@ public sealed record AssignTicketCommand
 	public string? ExpectedETag { get; init; }
 }
 
-public sealed record AssignTicketTeamCommand
+public sealed record AssignTicketTeamHttpRequest
 {
-	public required string TicketId { get; init; }
-
 	public string? AssignedTeamId { get; init; }
 
 	public string? Reason { get; init; }
@@ -86,10 +65,8 @@ public sealed record AssignTicketTeamCommand
 	public string? ExpectedETag { get; init; }
 }
 
-public sealed record SetTicketStatusCommand
+public sealed record SetTicketStatusHttpRequest
 {
-	public required string TicketId { get; init; }
-
 	public TicketStatus Status { get; init; }
 
 	public string? Reason { get; init; }
@@ -97,19 +74,22 @@ public sealed record SetTicketStatusCommand
 	public string? ExpectedETag { get; init; }
 }
 
-public sealed record CloseTicketCommand
+public sealed record ChangeTicketStatusHttpRequest
 {
-	public required string TicketId { get; init; }
+	public string? Reason { get; init; }
 
+	public string? ExpectedETag { get; init; }
+}
+
+public sealed record CloseTicketHttpRequest
+{
 	public string? ResolutionNote { get; init; }
 
 	public string? ExpectedETag { get; init; }
 }
 
-public sealed record ReopenTicketCommand
+public sealed record ReopenTicketHttpRequest
 {
-	public required string TicketId { get; init; }
-
 	public string? Reason { get; init; }
 
 	public string? ExpectedETag { get; init; }

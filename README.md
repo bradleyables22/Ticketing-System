@@ -28,7 +28,7 @@ Ticketing.Domain
   Business logic and workflow rules shared by all interaction surfaces.
 
 Ticketing.Rest
-  Minimal API endpoint layer. Not built out yet.
+  Minimal API endpoint layer over the domain services.
 ```
 
 The intended dependency direction is:
@@ -65,6 +65,17 @@ High-level permissions:
 - Team Lead: can manage assignment within their team.
 - Manager: manage teams, taxonomy, routing, and broader queues.
 - Admin: full system access.
+
+Current authorization policies:
+
+```text
+Ticketing.SubmitTicket
+Ticketing.ViewAllTickets
+Ticketing.WorkTicket
+Ticketing.ManageTeams
+Ticketing.ManageTaxonomy
+Ticketing.Admin
+```
 
 ## Data Platform
 
@@ -149,6 +160,8 @@ Current domain services:
 - `ITicketWorkflowService`
 - `ITeamManagementService`
 - `ITaxonomyManagementService`
+- `ITicketUserService`
+- `ITicketDashboardService`
 
 Public domain workflow and management services return `DomainResult<T>` so REST, MCP, and future UI adapters can map success/failure explicitly without catching business-rule exceptions. Permission evaluation is kept as an internal domain collaborator.
 
@@ -191,7 +204,56 @@ Current server composition:
 builder.Services.AddTicketingAuth(tenantId, clientId);
 builder.Services.AddTicketingData(azureStorageConnectionString);
 builder.Services.AddTicketingDomain();
+builder.Services.AddTicketingRest();
+builder.Services.AddOpenApi();
 ```
+
+REST endpoints are mapped from `Ticketing.Rest`:
+
+```csharp
+app.MapOpenApi();
+app.MapScalarApiReference("/api/docs");
+app.MapTicketingRestApi();
+app.MapHealthChecks("/health");
+```
+
+The Scalar API reference is available at:
+
+```text
+/api/docs
+```
+
+The OpenAPI document is available at:
+
+```text
+/openapi/v1.json
+```
+
+## REST API
+
+`Ticketing.Rest` is a thin Minimal API adapter. It should not own business rules. Endpoint handlers call the domain services and translate `DomainResult` responses into HTTP results.
+
+Current route groups:
+
+- `/api/me`
+- `/api/tickets`
+- `/api/teams`
+- `/api/taxonomy`
+- `/api/users`
+- `/api/dashboard`
+- `/api/system`
+
+Ticket endpoints currently cover create, read, search, queues, notes, attachments, audit, assignment, team reassignment, status transitions, close, reopen, and cancel workflows.
+
+Team endpoints currently cover team maintenance, membership maintenance, and category routing assignments.
+
+Taxonomy endpoints currently cover types, categories, and subcategories.
+
+User endpoints currently expose the authenticated user's profile, roles, permissions, and team memberships. User search currently reads from the local `UserProfiles` cache that is populated as authenticated users interact with the system. A future Microsoft Graph integration can expand this to live Entra user search.
+
+Dashboard endpoints currently expose live summary counts from the ticket projection tables.
+
+System endpoints currently expose admin-only system info, and `/health` exposes the ASP.NET Core health endpoint.
 
 ## Build
 
@@ -211,13 +273,22 @@ Implemented:
 - app roles and policies
 - domain workflow and permission layer
 - domain result wrappers for service responses
+- REST minimal API endpoint layer
+- HTTP mapping for domain result responses
+- Scalar API reference and OpenAPI document mapping
+- OpenAPI bearer authentication metadata
+- current-user context and cached user lookup
+- ticket search endpoint backed by existing projection tables
+- ticket status transition endpoints
+- dashboard summary endpoint
+- admin system info and health endpoint
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 
 Not yet implemented:
 
-- REST minimal API endpoints
 - MCP surface
 - UI
+- Microsoft Graph-backed live user search
 - projection repair worker
 - notification worker
 - SLA and escalation rules
@@ -228,8 +299,8 @@ Not yet implemented:
 ## Next Steps
 
 
-1. Build `Ticketing.Rest` as a thin minimal API adapter over `Ticketing.Domain`.
-2. Add `DomainResult` to HTTP response mapping.
-3. Add OpenAPI documentation.
-4. Add initial integration tests against a development Azure Storage Account or Azurite where compatible.
-5. Add background queue consumers for projection repair and notifications.
+1. Add initial integration tests against a development Azure Storage Account or Azurite where compatible.
+2. Add Microsoft Graph-backed user search for assignment workflows.
+3. Add background queue consumers for projection repair and notifications.
+4. Add production observability around storage latency, authorization failures, and endpoint error rates.
+5. Start the first UI or MCP surface on top of the domain layer.

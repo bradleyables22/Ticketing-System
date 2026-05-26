@@ -51,6 +51,10 @@ public interface ITicketWorkflowService
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> SearchAsync(
+		TicketSearchCriteria criteria,
+		CancellationToken cancellationToken = default);
+
 	Task<DomainResult<TicketRecord>> UpdateAsync(UpdateTicketCommand command, CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketNoteRecord>> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default);
@@ -87,6 +91,8 @@ public interface ITicketWorkflowService
 	Task<DomainResult<TicketRecord>> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketRecord>> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default);
+
+	Task<DomainResult<TicketRecord>> SetStatusAsync(SetTicketStatusCommand command, CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketRecord>> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default);
 

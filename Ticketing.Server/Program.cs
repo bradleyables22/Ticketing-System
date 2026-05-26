@@ -1,6 +1,11 @@
 using Ticketing.Auth.DependencyInjection;
 using Ticketing.Data.DependencyInjection;
 using Ticketing.Domain.DependencyInjection;
+using Ticketing.Rest.DependencyInjection;
+using Ticketing.Rest.Endpoints;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +38,31 @@ builder.Services.AddTicketingAuth(
 
 builder.Services.AddTicketingData(azureStorageConnectionString);
 builder.Services.AddTicketingDomain();
+builder.Services.AddTicketingRest();
+builder.Services.AddOpenApi(options =>
+{
+	options.AddDocumentTransformer((document, _, _) =>
+	{
+		document.Components ??= new OpenApiComponents();
+		document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+		document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+		{
+			Type = SecuritySchemeType.Http,
+			Scheme = "bearer",
+			BearerFormat = "JWT",
+			Description = "Microsoft Entra ID access token."
+		};
+
+		document.Security ??= [];
+		document.Security.Add(new OpenApiSecurityRequirement
+		{
+			[new OpenApiSecuritySchemeReference("Bearer", document, null)] = []
+		});
+
+		return Task.CompletedTask;
+	});
+});
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -43,6 +73,15 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapOpenApi();
+app.MapScalarApiReference("/api/docs", options =>
+{
+	options.Title = "Ticketing API";
+	options.PersistentAuthentication = true;
+});
+
+app.MapTicketingRestApi();
+app.MapHealthChecks("/health", new HealthCheckOptions()).AllowAnonymous();
 
 app.Run();
 

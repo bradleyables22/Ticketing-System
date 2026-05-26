@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Ticketing.Data.Models;
 using Ticketing.Data.Stores;
 using Ticketing.Domain.Exceptions;
@@ -7,6 +8,20 @@ namespace Ticketing.Domain.Services;
 
 internal sealed class TicketWorkflowService : ITicketWorkflowService
 {
+	private const int DefaultPageSize = 50;
+	private const int MaxPageSize = 500;
+
+	private static readonly TicketStatus[] SearchStatuses =
+	[
+		TicketStatus.Open,
+		TicketStatus.InProgress,
+		TicketStatus.PendingRequester,
+		TicketStatus.PendingVendor,
+		TicketStatus.Resolved,
+		TicketStatus.Closed,
+		TicketStatus.Cancelled
+	];
+
 	private readonly CurrentUserService _currentUser;
 	private readonly ITicketStore _ticketStore;
 	private readonly ITicketQueryStore _ticketQueryStore;
@@ -194,6 +209,36 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 				if (await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
 				{
 					tickets.Add(ticket);
+				}
+			}
+
+			return tickets;
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> SearchAsync(
+		TicketSearchCriteria criteria,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			ArgumentNullException.ThrowIfNull(criteria);
+
+			var pageSize = NormalizePageSize(criteria.PageSize);
+			var tickets = new List<TicketSummary>();
+			var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+			await foreach (var ticket in GetSearchCandidatesAsync(criteria, pageSize, cancellationToken))
+			{
+				if (!seen.Add(ticket.TicketId)
+					|| !MatchesSearchCriteria(ticket, criteria)
+					|| !await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
+				{
+					continue;
+				}
+
+				tickets.Add(ticket);
+				if (tickets.Count >= pageSize)
+				{
+					break;
 				}
 			}
 
@@ -397,6 +442,38 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 				cancellationToken);
 		});
 
+	public Task<DomainResult<TicketRecord>> SetStatusAsync(SetTicketStatusCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (command.Status == TicketStatus.Closed)
+			{
+				throw new TicketingValidationException("Use the close workflow to close tickets so a closure timestamp and resolution note are captured.");
+			}
+
+			var userOid = _currentUser.RequireUserOid();
+			var canWork = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
+			var isSubmitterCancellation = command.Status == TicketStatus.Cancelled
+				&& string.Equals(ticket.SubmitterOid, userOid, StringComparison.OrdinalIgnoreCase);
+
+			if (!canWork && !isSubmitterCancellation)
+			{
+				throw new TicketingForbiddenException("You do not have permission to change this ticket's status.");
+			}
+
+			var actorOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.SetStatusAsync(
+				new SetTicketStatusRequest
+				{
+					TicketId = command.TicketId,
+					ChangedByOid = actorOid,
+					Status = command.Status,
+					Reason = command.Reason,
+					ExpectedETag = command.ExpectedETag
+				},
+				cancellationToken);
+		});
+
 	public Task<DomainResult<TicketRecord>> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default) =>
 		DomainResult<TicketRecord>.TryAsync(async () =>
 		{
@@ -467,4 +544,220 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 	{
 		return await _teamStore.IsUserOnTeamAsync(userOid, teamId, cancellationToken);
 	}
+
+	private async IAsyncEnumerable<TicketSummary> GetSearchCandidatesAsync(
+		TicketSearchCriteria criteria,
+		int pageSize,
+		[EnumeratorCancellation] CancellationToken cancellationToken)
+	{
+		var userOid = _currentUser.RequireUserOid();
+
+		if (!string.IsNullOrWhiteSpace(criteria.Query))
+		{
+			var exactTicket = await _ticketStore.GetByNumberAsync(criteria.Query, cancellationToken);
+			if (exactTicket is not null)
+			{
+				yield return ToSummary(exactTicket);
+				yield break;
+			}
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.AssigneeOid))
+		{
+			if (!_permissions.CanViewAllTickets()
+				&& !string.Equals(criteria.AssigneeOid, userOid, StringComparison.OrdinalIgnoreCase))
+			{
+				throw new TicketingForbiddenException("Only managers and admins can search another user's assigned tickets.");
+			}
+
+			await foreach (var ticket in _ticketQueryStore.GetAssignedAsync(criteria.AssigneeOid, criteria.Status, pageSize, cancellationToken))
+			{
+				yield return ticket;
+			}
+
+			yield break;
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.SubmitterOid))
+		{
+			if (!_permissions.CanViewAllTickets()
+				&& !string.Equals(criteria.SubmitterOid, userOid, StringComparison.OrdinalIgnoreCase))
+			{
+				throw new TicketingForbiddenException("Only managers and admins can search another user's submitted tickets.");
+			}
+
+			await foreach (var ticket in _ticketQueryStore.GetSubmittedAsync(criteria.SubmitterOid, criteria.Status, pageSize, cancellationToken))
+			{
+				yield return ticket;
+			}
+
+			yield break;
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.AssignedTeamId))
+		{
+			if (!_permissions.CanManageTeams()
+				&& (!_permissions.IsTechnicianOrAbove()
+					|| !await IsOnTeamAsync(userOid, criteria.AssignedTeamId, cancellationToken)))
+			{
+				throw new TicketingForbiddenException("You do not have access to this team queue.");
+			}
+
+			await foreach (var ticket in _ticketQueryStore.GetByTeamAsync(criteria.AssignedTeamId, criteria.Status, pageSize, cancellationToken))
+			{
+				yield return ticket;
+			}
+
+			yield break;
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.Tag))
+		{
+			await foreach (var ticket in _ticketQueryStore.GetByTagAsync(criteria.Tag, criteria.Status, pageSize, cancellationToken))
+			{
+				yield return ticket;
+			}
+
+			yield break;
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.TypeId)
+			|| !string.IsNullOrWhiteSpace(criteria.CategoryId)
+			|| !string.IsNullOrWhiteSpace(criteria.SubcategoryId))
+		{
+			await foreach (var ticket in _ticketQueryStore.GetByQueueAsync(
+				criteria.TypeId,
+				criteria.CategoryId,
+				criteria.SubcategoryId,
+				criteria.Status,
+				pageSize,
+				cancellationToken))
+			{
+				yield return ticket;
+			}
+
+			yield break;
+		}
+
+		if (_permissions.CanViewAllTickets())
+		{
+			foreach (var status in Statuses(criteria.Status))
+			{
+				await foreach (var ticket in _ticketQueryStore.GetByStatusAsync(status, pageSize, cancellationToken))
+				{
+					yield return ticket;
+				}
+			}
+
+			yield break;
+		}
+
+		await foreach (var ticket in _ticketQueryStore.GetSubmittedAsync(userOid, criteria.Status, pageSize, cancellationToken))
+		{
+			yield return ticket;
+		}
+
+		if (!_permissions.IsTechnicianOrAbove())
+		{
+			yield break;
+		}
+
+		await foreach (var ticket in _ticketQueryStore.GetAssignedAsync(userOid, criteria.Status, pageSize, cancellationToken))
+		{
+			yield return ticket;
+		}
+
+		await foreach (var membership in _teamStore.GetMembershipsForUserAsync(userOid, false, null, cancellationToken))
+		{
+			await foreach (var ticket in _ticketQueryStore.GetByTeamAsync(membership.TeamId, criteria.Status, pageSize, cancellationToken))
+			{
+				yield return ticket;
+			}
+		}
+	}
+
+	private static IEnumerable<TicketStatus> Statuses(TicketStatus? status) =>
+		status.HasValue ? [status.Value] : SearchStatuses;
+
+	private static bool MatchesSearchCriteria(TicketSummary ticket, TicketSearchCriteria criteria)
+	{
+		if (criteria.Status.HasValue && ticket.Status != criteria.Status.Value)
+		{
+			return false;
+		}
+
+		if (criteria.Priority.HasValue && ticket.Priority != criteria.Priority.Value)
+		{
+			return false;
+		}
+
+		if (!Matches(ticket.SubmitterOid, criteria.SubmitterOid)
+			|| !Matches(ticket.AssigneeOid, criteria.AssigneeOid)
+			|| !Matches(ticket.AssignedTeamId, criteria.AssignedTeamId)
+			|| !Matches(ticket.TypeId, criteria.TypeId)
+			|| !Matches(ticket.CategoryId, criteria.CategoryId)
+			|| !Matches(ticket.SubcategoryId, criteria.SubcategoryId))
+		{
+			return false;
+		}
+
+		if (!string.IsNullOrWhiteSpace(criteria.Tag)
+			&& !ticket.Tags.Contains(criteria.Tag, StringComparer.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+
+		if (criteria.OpenedFromUtc.HasValue && ticket.OpenedUtc < criteria.OpenedFromUtc.Value)
+		{
+			return false;
+		}
+
+		if (criteria.OpenedToUtc.HasValue && ticket.OpenedUtc > criteria.OpenedToUtc.Value)
+		{
+			return false;
+		}
+
+		if (criteria.ClosedFromUtc.HasValue && (!ticket.ClosedUtc.HasValue || ticket.ClosedUtc.Value < criteria.ClosedFromUtc.Value))
+		{
+			return false;
+		}
+
+		if (criteria.ClosedToUtc.HasValue && (!ticket.ClosedUtc.HasValue || ticket.ClosedUtc.Value > criteria.ClosedToUtc.Value))
+		{
+			return false;
+		}
+
+		return string.IsNullOrWhiteSpace(criteria.Query)
+			|| Contains(ticket.TicketNumber, criteria.Query)
+			|| Contains(ticket.Title, criteria.Query);
+	}
+
+	private static bool Matches(string? actual, string? expected) =>
+		string.IsNullOrWhiteSpace(expected) || string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+
+	private static bool Contains(string? actual, string expected) =>
+		actual?.Contains(expected, StringComparison.OrdinalIgnoreCase) == true;
+
+	private static int NormalizePageSize(int? pageSize) =>
+		Math.Clamp(pageSize.GetValueOrDefault(DefaultPageSize), 1, MaxPageSize);
+
+	private static TicketSummary ToSummary(TicketRecord ticket) =>
+		new()
+		{
+			TicketId = ticket.TicketId,
+			TicketNumber = ticket.TicketNumber,
+			Title = ticket.Title,
+			Status = ticket.Status,
+			Priority = ticket.Priority,
+			TypeId = ticket.TypeId,
+			CategoryId = ticket.CategoryId,
+			SubcategoryId = ticket.SubcategoryId,
+			SubmitterOid = ticket.SubmitterOid,
+			AssigneeOid = ticket.AssigneeOid,
+			AssignedTeamId = ticket.AssignedTeamId,
+			OpenedUtc = ticket.OpenedUtc,
+			ClosedUtc = ticket.ClosedUtc,
+			LastUpdatedUtc = ticket.LastUpdatedUtc,
+			Tags = ticket.Tags
+		};
 }

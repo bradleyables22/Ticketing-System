@@ -228,6 +228,32 @@ internal sealed class AzureTicketStore : ITicketStore
 		return updated.ToRecord();
 	}
 
+	public async Task<TicketRecord> SetStatusAsync(SetTicketStatusRequest request, CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(request.TicketId);
+		ArgumentException.ThrowIfNullOrWhiteSpace(request.ChangedByOid);
+
+		var changedUtc = DateTimeOffset.UtcNow;
+		var updated = await _mutations.MutateAsync(
+			request.TicketId,
+			request.ExpectedETag,
+			ticket =>
+			{
+				ticket.Status = request.Status.ToString();
+				ticket.ClosedUtc = request.Status == TicketStatus.Cancelled ? changedUtc : null;
+				ticket.LastUpdatedUtc = changedUtc;
+			},
+			request.ChangedByOid,
+			TicketAuditEventType.StatusChanged,
+			nameof(TicketRecord.Status),
+			null,
+			request.Status.ToString(),
+			request.Reason ?? $"Ticket status changed to {request.Status}.",
+			cancellationToken);
+
+		return updated.ToRecord();
+	}
+
 	public async Task<TicketRecord> CloseAsync(CloseTicketRequest request, CancellationToken cancellationToken = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(request.TicketId);
