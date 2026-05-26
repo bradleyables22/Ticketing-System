@@ -19,6 +19,14 @@ public sealed class TicketingAuthenticationRequiredException : TicketingDomainEx
 	}
 }
 
+public sealed class TicketingInvalidPrincipalException : TicketingDomainException
+{
+	public TicketingInvalidPrincipalException(string message)
+		: base("invalid_principal", message)
+	{
+	}
+}
+
 public sealed class TicketingForbiddenException : TicketingDomainException
 {
 	public TicketingForbiddenException(string message)

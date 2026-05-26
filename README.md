@@ -147,9 +147,10 @@ Managers and admins manage teams and routing rules.
 Current domain services:
 
 - `ITicketWorkflowService`
-- `ITicketPermissionService`
 - `ITeamManagementService`
 - `ITaxonomyManagementService`
+
+Public domain workflow and management services return `DomainResult<T>` so REST, MCP, and future UI adapters can map success/failure explicitly without catching business-rule exceptions. Permission evaluation is kept as an internal domain collaborator.
 
 The domain layer owns rules such as:
 
@@ -209,6 +210,7 @@ Implemented:
 - Entra JWT authentication layer
 - app roles and policies
 - domain workflow and permission layer
+- domain result wrappers for service responses
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 
 Not yet implemented:
@@ -228,7 +230,7 @@ Not yet implemented:
 Recommended next work:
 
 1. Build `Ticketing.Rest` as a thin minimal API adapter over `Ticketing.Domain`.
-2. Add domain exception to HTTP response mapping.
+2. Add `DomainResult` to HTTP response mapping.
 3. Add OpenAPI documentation.
 4. Add initial integration tests against a development Azure Storage Account or Azurite where compatible.
 5. Add background queue consumers for projection repair and notifications.

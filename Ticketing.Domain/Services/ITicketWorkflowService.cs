@@ -5,66 +5,90 @@ namespace Ticketing.Domain.Services;
 
 public interface ITicketWorkflowService
 {
-	Task<TicketRecord> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> GetAsync(string ticketId, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> GetAsync(string ticketId, CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> GetByNumberAsync(string ticketNumber, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> GetByNumberAsync(string ticketNumber, CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketSummary> GetMyTicketsAsync(
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetMyTicketsAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketSummary> GetAssignedToMeAsync(
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetAssignedToMeAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketSummary> GetTeamQueueAsync(
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetUnassignedAsync(
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default);
+
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByStatusAsync(
+		TicketStatus status,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default);
+
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetTeamQueueAsync(
 		string teamId,
 		TicketStatus? status = null,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> UpdateAsync(UpdateTicketCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetCategoryQueueAsync(
+		string? typeId,
+		string? categoryId,
+		string? subcategoryId,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default);
 
-	Task<TicketNoteRecord> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByTagAsync(
+		string tag,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketNoteRecord> GetNotesAsync(
+	Task<DomainResult<TicketRecord>> UpdateAsync(UpdateTicketCommand command, CancellationToken cancellationToken = default);
+
+	Task<DomainResult<TicketNoteRecord>> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default);
+
+	Task<DomainResult<IReadOnlyList<TicketNoteRecord>>> GetNotesAsync(
 		string ticketId,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	Task<TicketAttachmentRecord> UploadAttachmentAsync(
+	Task<DomainResult<TicketAttachmentRecord>> UploadAttachmentAsync(
 		UploadTicketAttachmentCommand command,
 		CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketAttachmentRecord> GetAttachmentsAsync(
+	Task<DomainResult<IReadOnlyList<TicketAttachmentRecord>>> GetAttachmentsAsync(
 		string ticketId,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	Task<Stream> OpenAttachmentAsync(
+	Task<DomainResult<Stream>> OpenAttachmentAsync(
 		string ticketId,
 		string attachmentId,
 		CancellationToken cancellationToken = default);
 
-	Task DeleteAttachmentAsync(
+	Task<DomainResult> DeleteAttachmentAsync(
 		string ticketId,
 		string attachmentId,
 		CancellationToken cancellationToken = default);
 
-	IAsyncEnumerable<TicketAuditEventRecord> GetAuditAsync(
+	Task<DomainResult<IReadOnlyList<TicketAuditEventRecord>>> GetAuditAsync(
 		string ticketId,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default);
 
-	Task<TicketRecord> ReopenAsync(ReopenTicketCommand command, CancellationToken cancellationToken = default);
+	Task<DomainResult<TicketRecord>> ReopenAsync(ReopenTicketCommand command, CancellationToken cancellationToken = default);
 }

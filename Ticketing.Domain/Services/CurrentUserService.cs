@@ -29,7 +29,12 @@ internal sealed class CurrentUserService
 			throw new TicketingAuthenticationRequiredException();
 		}
 
-		return current.RequireUserOid();
+		if (string.IsNullOrWhiteSpace(current.UserOid))
+		{
+			throw new TicketingInvalidPrincipalException("The authenticated principal does not contain an Entra object id claim.");
+		}
+
+		return current.UserOid;
 	}
 
 	public async Task<string> RequireUserOidAndSyncProfileAsync(CancellationToken cancellationToken)

@@ -36,323 +36,408 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		_teamStore = teamStore;
 	}
 
-	public async Task<TicketRecord> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(command.Title);
-		ArgumentException.ThrowIfNullOrWhiteSpace(command.Description);
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-
-		return await _ticketStore.CreateAsync(
-			new CreateTicketRequest
-			{
-				Title = command.Title,
-				Description = command.Description,
-				SubmitterOid = userOid,
-				Priority = command.Priority,
-				TypeId = command.TypeId,
-				CategoryId = command.CategoryId,
-				SubcategoryId = command.SubcategoryId,
-				Tags = command.Tags
-			},
-			cancellationToken);
-	}
-
-	public async Task<TicketRecord> GetAsync(string ticketId, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		await EnsureCanViewAsync(ticket, cancellationToken);
-		return ticket;
-	}
-
-	public async Task<TicketRecord> GetByNumberAsync(string ticketNumber, CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(ticketNumber);
-
-		var ticket = await _ticketStore.GetByNumberAsync(ticketNumber, cancellationToken)
-			?? throw new TicketingNotFoundException("Ticket", ticketNumber);
-
-		await EnsureCanViewAsync(ticket, cancellationToken);
-		return ticket;
-	}
-
-	public IAsyncEnumerable<TicketSummary> GetMyTicketsAsync(
-		TicketStatus? status = null,
-		int? pageSize = null,
-		CancellationToken cancellationToken = default)
-	{
-		var userOid = _currentUser.RequireUserOid();
-		return _ticketQueryStore.GetSubmittedAsync(userOid, status, pageSize, cancellationToken);
-	}
-
-	public IAsyncEnumerable<TicketSummary> GetAssignedToMeAsync(
-		TicketStatus? status = null,
-		int? pageSize = null,
-		CancellationToken cancellationToken = default)
-	{
-		var userOid = _currentUser.RequireUserOid();
-		if (!_permissions.IsTechnicianOrAbove())
+	public Task<DomainResult<TicketRecord>> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("Only technicians, managers, and admins can view assigned work queues.");
-		}
+			ArgumentException.ThrowIfNullOrWhiteSpace(command.Title);
+			ArgumentException.ThrowIfNullOrWhiteSpace(command.Description);
 
-		return _ticketQueryStore.GetAssignedAsync(userOid, status, pageSize, cancellationToken);
-	}
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
 
-	public async IAsyncEnumerable<TicketSummary> GetTeamQueueAsync(
+			return await _ticketStore.CreateAsync(
+				new CreateTicketRequest
+				{
+					Title = command.Title,
+					Description = command.Description,
+					SubmitterOid = userOid,
+					Priority = command.Priority,
+					TypeId = command.TypeId,
+					CategoryId = command.CategoryId,
+					SubcategoryId = command.SubcategoryId,
+					Tags = command.Tags
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<TicketRecord>> GetAsync(string ticketId, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
+			return ticket;
+		});
+
+	public Task<DomainResult<TicketRecord>> GetByNumberAsync(string ticketNumber, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(ticketNumber);
+
+			var ticket = await _ticketStore.GetByNumberAsync(ticketNumber, cancellationToken)
+				?? throw new TicketingNotFoundException("Ticket", ticketNumber);
+
+			await EnsureCanViewAsync(ticket, cancellationToken);
+			return ticket;
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetMyTicketsAsync(
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			var userOid = _currentUser.RequireUserOid();
+			return await _ticketQueryStore.GetSubmittedAsync(userOid, status, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetAssignedToMeAsync(
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			var userOid = _currentUser.RequireUserOid();
+			if (!_permissions.IsTechnicianOrAbove())
+			{
+				throw new TicketingForbiddenException("Only technicians, managers, and admins can view assigned work queues.");
+			}
+
+			return await _ticketQueryStore.GetAssignedAsync(userOid, status, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetUnassignedAsync(
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			EnsureCanViewAllTickets("Only managers and admins can view the global unassigned queue.");
+			return await _ticketQueryStore.GetUnassignedAsync(status, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByStatusAsync(
+		TicketStatus status,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			EnsureCanViewAllTickets("Only managers and admins can view global status queues.");
+			return await _ticketQueryStore.GetByStatusAsync(status, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetTeamQueueAsync(
 		string teamId,
 		TicketStatus? status = null,
 		int? pageSize = null,
-		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
-		var userOid = _currentUser.RequireUserOid();
-
-		if (!_permissions.CanManageTeams()
-			&& (!_permissions.IsTechnicianOrAbove()
-				|| !await IsOnTeamAsync(userOid, teamId, cancellationToken)))
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("You do not have access to this team queue.");
-		}
+			ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
+			var userOid = _currentUser.RequireUserOid();
 
-		await foreach (var ticket in _ticketQueryStore.GetByTeamAsync(teamId, status, pageSize, cancellationToken))
-		{
-			yield return ticket;
-		}
-	}
-
-	public async Task<TicketRecord> UpdateAsync(UpdateTicketCommand command, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
-		{
-			throw new TicketingForbiddenException("You do not have permission to update this ticket.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketStore.UpdateDetailsAsync(
-			new UpdateTicketDetailsRequest
+			if (!_permissions.CanManageTeams()
+				&& (!_permissions.IsTechnicianOrAbove()
+					|| !await IsOnTeamAsync(userOid, teamId, cancellationToken)))
 			{
-				TicketId = command.TicketId,
-				UpdatedByOid = userOid,
-				ExpectedETag = command.ExpectedETag,
-				Title = command.Title,
-				Description = command.Description,
-				Priority = command.Priority,
-				TypeId = command.TypeId,
-				CategoryId = command.CategoryId,
-				SubcategoryId = command.SubcategoryId,
-				ClearClassification = command.ClearClassification,
-				Tags = command.Tags
-			},
-			cancellationToken);
-	}
+				throw new TicketingForbiddenException("You do not have access to this team queue.");
+			}
 
-	public async Task<TicketNoteRecord> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(command.Body);
+			return await _ticketQueryStore.GetByTeamAsync(teamId, status, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
 
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		var canWork = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
-		var canView = canWork || await _permissions.CanViewTicketAsync(ticket, cancellationToken);
-
-		if (!canView)
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetCategoryQueueAsync(
+		string? typeId,
+		string? categoryId,
+		string? subcategoryId,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("You do not have permission to add a note to this ticket.");
-		}
-
-		if (command.IsInternal && !canWork)
-		{
-			throw new TicketingForbiddenException("Only ticket workers can add internal notes.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketNoteStore.AddAsync(
-			new AddTicketNoteRequest
+			_currentUser.RequireUserOid();
+			if (string.IsNullOrWhiteSpace(typeId)
+				&& string.IsNullOrWhiteSpace(categoryId)
+				&& string.IsNullOrWhiteSpace(subcategoryId))
 			{
-				TicketId = command.TicketId,
-				AuthorOid = userOid,
-				Body = command.Body,
-				IsInternal = command.IsInternal
-			},
-			cancellationToken);
-	}
+				throw new TicketingValidationException("A category queue requires a type, category, or subcategory.");
+			}
 
-	public async IAsyncEnumerable<TicketNoteRecord> GetNotesAsync(
+			var tickets = new List<TicketSummary>();
+			await foreach (var ticket in _ticketQueryStore.GetByQueueAsync(typeId, categoryId, subcategoryId, status, pageSize, cancellationToken))
+			{
+				if (await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
+				{
+					tickets.Add(ticket);
+				}
+			}
+
+			return tickets;
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByTagAsync(
+		string tag,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+			_currentUser.RequireUserOid();
+
+			var tickets = new List<TicketSummary>();
+			await foreach (var ticket in _ticketQueryStore.GetByTagAsync(tag, status, pageSize, cancellationToken))
+			{
+				if (await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
+				{
+					tickets.Add(ticket);
+				}
+			}
+
+			return tickets;
+		});
+
+	public Task<DomainResult<TicketRecord>> UpdateAsync(UpdateTicketCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
+			{
+				throw new TicketingForbiddenException("You do not have permission to update this ticket.");
+			}
+
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.UpdateDetailsAsync(
+				new UpdateTicketDetailsRequest
+				{
+					TicketId = command.TicketId,
+					UpdatedByOid = userOid,
+					ExpectedETag = command.ExpectedETag,
+					Title = command.Title,
+					Description = command.Description,
+					Priority = command.Priority,
+					TypeId = command.TypeId,
+					CategoryId = command.CategoryId,
+					SubcategoryId = command.SubcategoryId,
+					ClearClassification = command.ClearClassification,
+					Tags = command.Tags
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<TicketNoteRecord>> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketNoteRecord>.TryAsync(async () =>
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(command.Body);
+
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			var canWork = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
+			var canView = canWork || await _permissions.CanViewTicketAsync(ticket, cancellationToken);
+
+			if (!canView)
+			{
+				throw new TicketingForbiddenException("You do not have permission to add a note to this ticket.");
+			}
+
+			if (command.IsInternal && !canWork)
+			{
+				throw new TicketingForbiddenException("Only ticket workers can add internal notes.");
+			}
+
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketNoteStore.AddAsync(
+				new AddTicketNoteRequest
+				{
+					TicketId = command.TicketId,
+					AuthorOid = userOid,
+					Body = command.Body,
+					IsInternal = command.IsInternal
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<IReadOnlyList<TicketNoteRecord>>> GetNotesAsync(
 		string ticketId,
 		int? pageSize = null,
-		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		await EnsureCanViewAsync(ticket, cancellationToken);
-		var includeInternal = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
-
-		await foreach (var note in _ticketNoteStore.GetForTicketAsync(ticketId, includeInternal, pageSize, cancellationToken))
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketNoteRecord>>.TryAsync(async () =>
 		{
-			yield return note;
-		}
-	}
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
+			var includeInternal = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
 
-	public async Task<TicketAttachmentRecord> UploadAttachmentAsync(
+			return await _ticketNoteStore.GetForTicketAsync(ticketId, includeInternal, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<TicketAttachmentRecord>> UploadAttachmentAsync(
 		UploadTicketAttachmentCommand command,
-		CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(command.OriginalFileName);
+		CancellationToken cancellationToken = default) =>
+		DomainResult<TicketAttachmentRecord>.TryAsync(async () =>
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(command.OriginalFileName);
 
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		await EnsureCanViewAsync(ticket, cancellationToken);
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
 
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketAttachmentStore.UploadAsync(
-			new UploadTicketAttachmentRequest
-			{
-				TicketId = command.TicketId,
-				UploadedByOid = userOid,
-				OriginalFileName = command.OriginalFileName,
-				ContentType = command.ContentType,
-				Content = command.Content,
-				SizeBytes = command.SizeBytes
-			},
-			cancellationToken);
-	}
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketAttachmentStore.UploadAsync(
+				new UploadTicketAttachmentRequest
+				{
+					TicketId = command.TicketId,
+					UploadedByOid = userOid,
+					OriginalFileName = command.OriginalFileName,
+					ContentType = command.ContentType,
+					Content = command.Content,
+					SizeBytes = command.SizeBytes
+				},
+				cancellationToken);
+		});
 
-	public async IAsyncEnumerable<TicketAttachmentRecord> GetAttachmentsAsync(
+	public Task<DomainResult<IReadOnlyList<TicketAttachmentRecord>>> GetAttachmentsAsync(
 		string ticketId,
 		int? pageSize = null,
-		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		await EnsureCanViewAsync(ticket, cancellationToken);
-
-		await foreach (var attachment in _ticketAttachmentStore.GetForTicketAsync(ticketId, includeDeleted: false, pageSize, cancellationToken))
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketAttachmentRecord>>.TryAsync(async () =>
 		{
-			yield return attachment;
-		}
-	}
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
 
-	public async Task<Stream> OpenAttachmentAsync(
+			return await _ticketAttachmentStore.GetForTicketAsync(ticketId, includeDeleted: false, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<Stream>> OpenAttachmentAsync(
 		string ticketId,
 		string attachmentId,
-		CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		await EnsureCanViewAsync(ticket, cancellationToken);
-		return await _ticketAttachmentStore.OpenReadAsync(ticketId, attachmentId, cancellationToken);
-	}
+		CancellationToken cancellationToken = default) =>
+		DomainResult<Stream>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
+			return await _ticketAttachmentStore.OpenReadAsync(ticketId, attachmentId, cancellationToken);
+		});
 
-	public async Task DeleteAttachmentAsync(
+	public Task<DomainResult> DeleteAttachmentAsync(
 		string ticketId,
 		string attachmentId,
-		CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
+		CancellationToken cancellationToken = default) =>
+		DomainResult.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("Only ticket workers can delete attachments.");
-		}
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
+			{
+				throw new TicketingForbiddenException("Only ticket workers can delete attachments.");
+			}
 
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		await _ticketAttachmentStore.SoftDeleteAsync(ticketId, attachmentId, userOid, cancellationToken);
-	}
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			await _ticketAttachmentStore.SoftDeleteAsync(ticketId, attachmentId, userOid, cancellationToken);
+		});
 
-	public async IAsyncEnumerable<TicketAuditEventRecord> GetAuditAsync(
+	public Task<DomainResult<IReadOnlyList<TicketAuditEventRecord>>> GetAuditAsync(
 		string ticketId,
 		int? pageSize = null,
-		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
-		if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
+		CancellationToken cancellationToken = default) =>
+		DomainResult<IReadOnlyList<TicketAuditEventRecord>>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("Only ticket workers can view audit history.");
-		}
-
-		await foreach (var auditEvent in _ticketAuditStore.GetForTicketAsync(ticketId, pageSize, cancellationToken))
-		{
-			yield return auditEvent;
-		}
-	}
-
-	public async Task<TicketRecord> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		if (!await _permissions.CanAssignTicketAsync(ticket, command.AssigneeOid, cancellationToken))
-		{
-			throw new TicketingForbiddenException("You do not have permission to assign this ticket.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketStore.AssignAsync(
-			new AssignTicketRequest
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
 			{
-				TicketId = command.TicketId,
-				ChangedByOid = userOid,
-				AssigneeOid = command.AssigneeOid,
-				Reason = command.Reason,
-				ExpectedETag = command.ExpectedETag
-			},
-			cancellationToken);
-	}
+				throw new TicketingForbiddenException("Only ticket workers can view audit history.");
+			}
 
-	public async Task<TicketRecord> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		if (!await _permissions.CanAssignTicketTeamAsync(ticket, command.AssignedTeamId, cancellationToken))
+			return await _ticketAuditStore.GetForTicketAsync(ticketId, pageSize, cancellationToken)
+				.ToReadOnlyListAsync(cancellationToken);
+		});
+
+	public Task<DomainResult<TicketRecord>> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("Only managers and admins can reassign tickets between teams.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketStore.AssignTeamAsync(
-			new AssignTicketTeamRequest
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (!await _permissions.CanAssignTicketAsync(ticket, command.AssigneeOid, cancellationToken))
 			{
-				TicketId = command.TicketId,
-				ChangedByOid = userOid,
-				AssignedTeamId = command.AssignedTeamId,
-				Reason = command.Reason,
-				ExpectedETag = command.ExpectedETag
-			},
-			cancellationToken);
-	}
+				throw new TicketingForbiddenException("You do not have permission to assign this ticket.");
+			}
 
-	public async Task<TicketRecord> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.AssignAsync(
+				new AssignTicketRequest
+				{
+					TicketId = command.TicketId,
+					ChangedByOid = userOid,
+					AssigneeOid = command.AssigneeOid,
+					Reason = command.Reason,
+					ExpectedETag = command.ExpectedETag
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<TicketRecord>> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("You do not have permission to close this ticket.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketStore.CloseAsync(
-			new CloseTicketRequest
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (!await _permissions.CanAssignTicketTeamAsync(ticket, command.AssignedTeamId, cancellationToken))
 			{
-				TicketId = command.TicketId,
-				ClosedByOid = userOid,
-				ResolutionNote = command.ResolutionNote,
-				ExpectedETag = command.ExpectedETag
-			},
-			cancellationToken);
-	}
+				throw new TicketingForbiddenException("Only managers and admins can reassign tickets between teams.");
+			}
 
-	public async Task<TicketRecord> ReopenAsync(ReopenTicketCommand command, CancellationToken cancellationToken = default)
-	{
-		var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
-		if (!await _permissions.CanViewTicketAsync(ticket, cancellationToken))
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.AssignTeamAsync(
+				new AssignTicketTeamRequest
+				{
+					TicketId = command.TicketId,
+					ChangedByOid = userOid,
+					AssignedTeamId = command.AssignedTeamId,
+					Reason = command.Reason,
+					ExpectedETag = command.ExpectedETag
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<TicketRecord>> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
 		{
-			throw new TicketingForbiddenException("You do not have permission to reopen this ticket.");
-		}
-
-		var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-		return await _ticketStore.ReopenAsync(
-			new ReopenTicketRequest
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
 			{
-				TicketId = command.TicketId,
-				ReopenedByOid = userOid,
-				Reason = command.Reason,
-				ExpectedETag = command.ExpectedETag
-			},
-			cancellationToken);
-	}
+				throw new TicketingForbiddenException("You do not have permission to close this ticket.");
+			}
+
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.CloseAsync(
+				new CloseTicketRequest
+				{
+					TicketId = command.TicketId,
+					ClosedByOid = userOid,
+					ResolutionNote = command.ResolutionNote,
+					ExpectedETag = command.ExpectedETag
+				},
+				cancellationToken);
+		});
+
+	public Task<DomainResult<TicketRecord>> ReopenAsync(ReopenTicketCommand command, CancellationToken cancellationToken = default) =>
+		DomainResult<TicketRecord>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
+			if (!await _permissions.CanViewTicketAsync(ticket, cancellationToken))
+			{
+				throw new TicketingForbiddenException("You do not have permission to reopen this ticket.");
+			}
+
+			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			return await _ticketStore.ReopenAsync(
+				new ReopenTicketRequest
+				{
+					TicketId = command.TicketId,
+					ReopenedByOid = userOid,
+					Reason = command.Reason,
+					ExpectedETag = command.ExpectedETag
+				},
+				cancellationToken);
+		});
 
 	private async Task<TicketRecord> GetRequiredTicketAsync(string ticketId, CancellationToken cancellationToken)
 	{
@@ -366,6 +451,15 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		if (!await _permissions.CanViewTicketAsync(ticket, cancellationToken))
 		{
 			throw new TicketingForbiddenException("You do not have permission to view this ticket.");
+		}
+	}
+
+	private void EnsureCanViewAllTickets(string message)
+	{
+		_currentUser.RequireUserOid();
+		if (!_permissions.CanViewAllTickets())
+		{
+			throw new TicketingForbiddenException(message);
 		}
 	}
 

@@ -31,11 +31,42 @@ internal sealed class TicketPermissionService : ITicketPermissionService
 			&& await _teamStore.IsUserOnTeamAsync(userOid, ticket.AssignedTeamId, cancellationToken);
 	}
 
+	public async Task<bool> CanViewTicketSummaryAsync(TicketSummary ticket, CancellationToken cancellationToken = default)
+	{
+		var userOid = _currentUser.RequireUserOid();
+
+		if (CanViewAllTickets()
+			|| string.Equals(ticket.SubmitterOid, userOid, StringComparison.OrdinalIgnoreCase)
+			|| string.Equals(ticket.AssigneeOid, userOid, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+
+		return IsTechnicianOrAbove()
+			&& !string.IsNullOrWhiteSpace(ticket.AssignedTeamId)
+			&& await _teamStore.IsUserOnTeamAsync(userOid, ticket.AssignedTeamId, cancellationToken);
+	}
+
 	public async Task<bool> CanWorkTicketAsync(TicketRecord ticket, CancellationToken cancellationToken = default)
 	{
 		var userOid = _currentUser.RequireUserOid();
 
 		if (IsManagerOrAdmin()
+			|| string.Equals(ticket.AssigneeOid, userOid, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+
+		return IsTechnicianOrAbove()
+			&& !string.IsNullOrWhiteSpace(ticket.AssignedTeamId)
+			&& await _teamStore.IsUserOnTeamAsync(userOid, ticket.AssignedTeamId, cancellationToken);
+	}
+
+	public async Task<bool> CanWorkTicketSummaryAsync(TicketSummary ticket, CancellationToken cancellationToken = default)
+	{
+		var userOid = _currentUser.RequireUserOid();
+
+		if (CanViewAllTickets()
 			|| string.Equals(ticket.AssigneeOid, userOid, StringComparison.OrdinalIgnoreCase))
 		{
 			return true;
@@ -92,6 +123,8 @@ internal sealed class TicketPermissionService : ITicketPermissionService
 	public bool CanManageTeams() => IsManagerOrAdmin();
 
 	public bool CanManageTaxonomy() => IsManagerOrAdmin();
+
+	public bool CanViewAllTickets() => IsManagerOrAdmin();
 
 	public bool IsTechnicianOrAbove() =>
 		HasRole(TicketingAppRoles.Technician) || IsManagerOrAdmin();
