@@ -219,6 +219,8 @@ System endpoints currently expose admin-only system info, and `/health` exposes 
 
 REST auth requirements are documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
+List-style REST endpoints accept `pageSize`. Missing values default to 50 and values above 500 are clamped to 500. The current API returns bounded result sets; continuation-token response envelopes are still a future REST contract upgrade.
+
 ## Build
 
 Build the solution:
@@ -240,6 +242,7 @@ Implemented:
 - domain workflow and permission layer
 - domain result wrappers for service responses
 - REST minimal API endpoint layer
+- bounded `pageSize` handling for REST list endpoints
 - HTTP mapping for domain result responses
 - Scalar API reference and OpenAPI document mapping
 - OpenAPI bearer authentication metadata
@@ -259,6 +262,7 @@ Not yet implemented:
 - notification worker
 - SLA and escalation rules
 - full search/reporting strategy
+- continuation-token response envelopes for long REST lists
 - automated tests
 - production observability and health checks
 

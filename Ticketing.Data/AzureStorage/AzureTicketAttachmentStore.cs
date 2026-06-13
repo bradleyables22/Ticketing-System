@@ -89,16 +89,32 @@ internal sealed class AzureTicketAttachmentStore : ITicketAttachmentStore
 
 		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TicketAttachments
-			.QueryAsync<TicketAttachmentEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TicketAttachmentEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (!entity.IsDeleted || includeDeleted)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
+	}
+
+	public async Task<TicketAttachmentRecord?> GetAsync(
+		string ticketId,
+		string attachmentId,
+		CancellationToken cancellationToken = default)
+	{
+		var entity = await FindAttachmentEntityAsync(ticketId, attachmentId, cancellationToken);
+		return entity is null || entity.IsDeleted ? null : entity.ToRecord();
 	}
 
 	public async Task<Stream> OpenReadAsync(string ticketId, string attachmentId, CancellationToken cancellationToken = default)
@@ -148,6 +164,15 @@ internal sealed class AzureTicketAttachmentStore : ITicketAttachmentStore
 		string attachmentId,
 		CancellationToken cancellationToken)
 	{
+		return await FindAttachmentEntityAsync(ticketId, attachmentId, cancellationToken)
+			?? throw new KeyNotFoundException($"Attachment '{attachmentId}' was not found for ticket '{ticketId}'.");
+	}
+
+	private async Task<TicketAttachmentEntity?> FindAttachmentEntityAsync(
+		string ticketId,
+		string attachmentId,
+		CancellationToken cancellationToken)
+	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(ticketId);
 		ArgumentException.ThrowIfNullOrWhiteSpace(attachmentId);
 
@@ -161,7 +186,7 @@ internal sealed class AzureTicketAttachmentStore : ITicketAttachmentStore
 			return entity;
 		}
 
-		throw new KeyNotFoundException($"Attachment '{attachmentId}' was not found for ticket '{ticketId}'.");
+		return null;
 	}
 
 	private static long GetStreamLength(Stream content)

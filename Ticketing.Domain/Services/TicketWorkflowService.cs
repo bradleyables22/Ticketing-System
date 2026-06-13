@@ -8,9 +8,6 @@ namespace Ticketing.Domain.Services;
 
 internal sealed class TicketWorkflowService : ITicketWorkflowService
 {
-	private const int DefaultPageSize = 50;
-	private const int MaxPageSize = 500;
-
 	private static readonly TicketStatus[] SearchStatuses =
 	[
 		TicketStatus.Open,
@@ -100,9 +97,10 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var userOid = _currentUser.RequireUserOid();
-			return await _ticketQueryStore.GetSubmittedAsync(userOid, status, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketQueryStore.GetSubmittedAsync(userOid, status, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetAssignedToMeAsync(
@@ -111,14 +109,15 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var userOid = _currentUser.RequireUserOid();
 			if (!_permissions.IsTechnicianOrAbove())
 			{
 				throw new TicketingForbiddenException("Only technicians, managers, and admins can view assigned work queues.");
 			}
 
-			return await _ticketQueryStore.GetAssignedAsync(userOid, status, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketQueryStore.GetAssignedAsync(userOid, status, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetUnassignedAsync(
@@ -127,9 +126,10 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureCanViewAllTickets("Only managers and admins can view the global unassigned queue.");
-			return await _ticketQueryStore.GetUnassignedAsync(status, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketQueryStore.GetUnassignedAsync(status, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByStatusAsync(
@@ -138,9 +138,10 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureCanViewAllTickets("Only managers and admins can view global status queues.");
-			return await _ticketQueryStore.GetByStatusAsync(status, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketQueryStore.GetByStatusAsync(status, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetTeamQueueAsync(
@@ -150,6 +151,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
 			var userOid = _currentUser.RequireUserOid();
 
@@ -160,8 +162,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 				throw new TicketingForbiddenException("You do not have access to this team queue.");
 			}
 
-			return await _ticketQueryStore.GetByTeamAsync(teamId, status, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketQueryStore.GetByTeamAsync(teamId, status, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TicketSummary>>> GetCategoryQueueAsync(
@@ -173,6 +175,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			_currentUser.RequireUserOid();
 			if (string.IsNullOrWhiteSpace(typeId)
 				&& string.IsNullOrWhiteSpace(categoryId)
@@ -182,11 +185,15 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var tickets = new List<TicketSummary>();
-			await foreach (var ticket in _ticketQueryStore.GetByQueueAsync(typeId, categoryId, subcategoryId, status, pageSize, cancellationToken))
+			await foreach (var ticket in _ticketQueryStore.GetByQueueAsync(typeId, categoryId, subcategoryId, status, normalizedPageSize, cancellationToken))
 			{
 				if (await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
 				{
 					tickets.Add(ticket);
+					if (tickets.Count >= normalizedPageSize)
+					{
+						break;
+					}
 				}
 			}
 
@@ -200,15 +207,20 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketSummary>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 			_currentUser.RequireUserOid();
 
 			var tickets = new List<TicketSummary>();
-			await foreach (var ticket in _ticketQueryStore.GetByTagAsync(tag, status, pageSize, cancellationToken))
+			await foreach (var ticket in _ticketQueryStore.GetByTagAsync(tag, status, normalizedPageSize, cancellationToken))
 			{
 				if (await _permissions.CanViewTicketSummaryAsync(ticket, cancellationToken))
 				{
 					tickets.Add(ticket);
+					if (tickets.Count >= normalizedPageSize)
+					{
+						break;
+					}
 				}
 			}
 
@@ -222,7 +234,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		{
 			ArgumentNullException.ThrowIfNull(criteria);
 
-			var pageSize = NormalizePageSize(criteria.PageSize);
+			var pageSize = DomainPaging.NormalizePageSize(criteria.PageSize);
 			var tickets = new List<TicketSummary>();
 			var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -310,12 +322,13 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketNoteRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
 			await EnsureCanViewAsync(ticket, cancellationToken);
 			var includeInternal = await _permissions.CanWorkTicketAsync(ticket, cancellationToken);
 
-			return await _ticketNoteStore.GetForTicketAsync(ticketId, includeInternal, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketNoteStore.GetForTicketAsync(ticketId, includeInternal, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<TicketAttachmentRecord>> UploadAttachmentAsync(
@@ -348,11 +361,25 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketAttachmentRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
 			await EnsureCanViewAsync(ticket, cancellationToken);
 
-			return await _ticketAttachmentStore.GetForTicketAsync(ticketId, includeDeleted: false, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketAttachmentStore.GetForTicketAsync(ticketId, includeDeleted: false, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+		});
+
+	public Task<DomainResult<TicketAttachmentRecord>> GetAttachmentAsync(
+		string ticketId,
+		string attachmentId,
+		CancellationToken cancellationToken = default) =>
+		DomainResult<TicketAttachmentRecord>.TryAsync(async () =>
+		{
+			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
+			await EnsureCanViewAsync(ticket, cancellationToken);
+
+			return await _ticketAttachmentStore.GetAsync(ticketId, attachmentId, cancellationToken)
+				?? throw new TicketingNotFoundException("Attachment", attachmentId);
 		});
 
 	public Task<DomainResult<Stream>> OpenAttachmentAsync(
@@ -388,14 +415,15 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TicketAuditEventRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var ticket = await GetRequiredTicketAsync(ticketId, cancellationToken);
 			if (!await _permissions.CanWorkTicketAsync(ticket, cancellationToken))
 			{
 				throw new TicketingForbiddenException("Only ticket workers can view audit history.");
 			}
 
-			return await _ticketAuditStore.GetForTicketAsync(ticketId, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _ticketAuditStore.GetForTicketAsync(ticketId, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<TicketRecord>> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default) =>
@@ -737,9 +765,6 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 
 	private static bool Contains(string? actual, string expected) =>
 		actual?.Contains(expected, StringComparison.OrdinalIgnoreCase) == true;
-
-	private static int NormalizePageSize(int? pageSize) =>
-		Math.Clamp(pageSize.GetValueOrDefault(DefaultPageSize), 1, MaxPageSize);
 
 	private static TicketSummary ToSummary(TicketRecord ticket) =>
 		new()

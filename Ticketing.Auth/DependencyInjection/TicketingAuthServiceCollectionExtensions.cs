@@ -138,7 +138,7 @@ public static class TicketingAuthServiceCollectionExtensions
 					options.Scopes.Manage,
 					options.Scopes.System));
 
-		builder.AddPolicy(TicketingAuthPolicies.ViewAllTickets, policy =>
+		builder.AddPolicy(TicketingAuthPolicies.ViewWorkQueues, policy =>
 			policy.RequireAuthenticatedUser()
 				.RequireAnyTicketingScope(
 					options,
@@ -148,6 +148,18 @@ public static class TicketingAuthServiceCollectionExtensions
 					options.Scopes.System)
 				.RequireRole(
 					options.Roles.Technician,
+					options.Roles.Manager,
+					options.Roles.Admin));
+
+		builder.AddPolicy(TicketingAuthPolicies.ViewAllTickets, policy =>
+			policy.RequireAuthenticatedUser()
+				.RequireAnyTicketingScope(
+					options,
+					options.Scopes.Read,
+					options.Scopes.Write,
+					options.Scopes.Manage,
+					options.Scopes.System)
+				.RequireRole(
 					options.Roles.Manager,
 					options.Roles.Admin));
 

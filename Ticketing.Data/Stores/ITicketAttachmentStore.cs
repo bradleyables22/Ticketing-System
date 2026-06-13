@@ -12,6 +12,11 @@ public interface ITicketAttachmentStore
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<TicketAttachmentRecord?> GetAsync(
+		string ticketId,
+		string attachmentId,
+		CancellationToken cancellationToken = default);
+
 	Task<Stream> OpenReadAsync(string ticketId, string attachmentId, CancellationToken cancellationToken = default);
 
 	Task SoftDeleteAsync(string ticketId, string attachmentId, string deletedByOid, CancellationToken cancellationToken = default);

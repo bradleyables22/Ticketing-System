@@ -100,9 +100,10 @@ internal sealed class TeamManagementService : ITeamManagementService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TeamRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureTechnicianOrAbove("Only technicians, managers, and admins can view teams.");
-			return await _teamStore.GetTeamsAsync(CanIncludeInactive(includeInactive), pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _teamStore.GetTeamsAsync(CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMyMembershipsAsync(
@@ -111,9 +112,10 @@ internal sealed class TeamManagementService : ITeamManagementService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TeamMemberRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var userOid = _currentUser.RequireUserOid();
-			return await _teamStore.GetMembershipsForUserAsync(userOid, CanIncludeInactive(includeInactive), pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _teamStore.GetMembershipsForUserAsync(userOid, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMembersAsync(
@@ -123,11 +125,12 @@ internal sealed class TeamManagementService : ITeamManagementService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TeamMemberRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
 			await EnsureCanViewTeamMembersAsync(teamId, cancellationToken);
 
-			return await _teamStore.GetMembersAsync(teamId, CanIncludeInactive(includeInactive), pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _teamStore.GetMembersAsync(teamId, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	public Task<DomainResult<IReadOnlyList<TeamCategoryAssignmentRecord>>> GetCategoryAssignmentsAsync(
@@ -137,9 +140,10 @@ internal sealed class TeamManagementService : ITeamManagementService
 		CancellationToken cancellationToken = default) =>
 		DomainResult<IReadOnlyList<TeamCategoryAssignmentRecord>>.TryAsync(async () =>
 		{
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureCanManageTeams();
-			return await _teamStore.GetCategoryAssignmentsAsync(teamId, includeInactive, pageSize, cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _teamStore.GetCategoryAssignmentsAsync(teamId, includeInactive, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
 
 	private void EnsureCanManageTeams()

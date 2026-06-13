@@ -73,6 +73,11 @@ public interface ITicketWorkflowService
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<DomainResult<TicketAttachmentRecord>> GetAttachmentAsync(
+		string ticketId,
+		string attachmentId,
+		CancellationToken cancellationToken = default);
+
 	Task<DomainResult<Stream>> OpenAttachmentAsync(
 		string ticketId,
 		string attachmentId,

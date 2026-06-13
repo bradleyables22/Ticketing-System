@@ -4,6 +4,8 @@ public static class TicketingAuthPolicies
 {
 	public const string SubmitTicket = "Ticketing.SubmitTicket";
 
+	public const string ViewWorkQueues = "Ticketing.ViewWorkQueues";
+
 	public const string ViewAllTickets = "Ticketing.ViewAllTickets";
 
 	public const string WorkTicket = "Ticketing.WorkTicket";

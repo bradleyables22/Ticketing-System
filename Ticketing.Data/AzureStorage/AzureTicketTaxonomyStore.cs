@@ -88,11 +88,17 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 		int? pageSize = null,
 		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
+		var returned = 0;
 		await foreach (var entity in QueryPartitionAsync(StorageKeys.TypePartition(), pageSize, cancellationToken))
 		{
 			if (entity.TaxonomyKind == TypeKind && (includeInactive || entity.IsActive))
 			{
 				yield return entity.ToTypeRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(pageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -105,11 +111,17 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(typeId);
 
+		var returned = 0;
 		await foreach (var entity in QueryPartitionAsync(StorageKeys.CategoryPartition(typeId), pageSize, cancellationToken))
 		{
 			if (entity.TaxonomyKind == CategoryKind && (includeInactive || entity.IsActive))
 			{
 				yield return entity.ToCategoryRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(pageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -122,11 +134,17 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(categoryId);
 
+		var returned = 0;
 		await foreach (var entity in QueryPartitionAsync(StorageKeys.SubcategoryPartition(categoryId), pageSize, cancellationToken))
 		{
 			if (entity.TaxonomyKind == SubcategoryKind && (includeInactive || entity.IsActive))
 			{
 				yield return entity.ToSubcategoryRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(pageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -166,10 +184,11 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 		int? pageSize,
 		[EnumeratorCancellation] CancellationToken cancellationToken)
 	{
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
 
 		await foreach (var entity in _clients.TicketTaxonomy
-			.QueryAsync<TicketTaxonomyEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TicketTaxonomyEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			yield return entity;

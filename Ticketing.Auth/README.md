@@ -119,6 +119,7 @@ Ticketing.Scope.Write
 Ticketing.Scope.Manage
 Ticketing.Scope.System
 Ticketing.SubmitTicket
+Ticketing.ViewWorkQueues
 Ticketing.ViewAllTickets
 Ticketing.WorkTicket
 Ticketing.ManageTeams
@@ -143,6 +144,12 @@ Ticketing.Scope.System
 
 Ticketing.SubmitTicket
   Authenticated user plus write-capable client scope.
+
+Ticketing.ViewWorkQueues
+  Technician, manager, or admin user role plus read-capable client scope.
+
+Ticketing.ViewAllTickets
+  Manager or admin user role plus read-capable client scope.
 
 Ticketing.WorkTicket
   Technician, manager, or admin user role.

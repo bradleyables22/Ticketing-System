@@ -25,12 +25,19 @@ internal sealed class AzureTicketAuditStore : ITicketAuditStore
 
 		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TicketAudit
-			.QueryAsync<TicketAuditEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TicketAuditEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			yield return entity.ToRecord();
+			returned++;
+			if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+			{
+				yield break;
+			}
 		}
 	}
 }

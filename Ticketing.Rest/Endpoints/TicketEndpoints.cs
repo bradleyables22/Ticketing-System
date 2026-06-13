@@ -126,7 +126,7 @@ internal static class TicketEndpoints
 				var result = await ticketWorkflow.GetAssignedToMeAsync(status, pageSize, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
+			.RequireAuthorization(TicketingAuthPolicies.ViewWorkQueues)
 			.WithName("GetAssignedToMe");
 
 		tickets.MapGet("/unassigned", async (
@@ -163,7 +163,7 @@ internal static class TicketEndpoints
 				var result = await ticketWorkflow.GetTeamQueueAsync(teamId, status, pageSize, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
+			.RequireAuthorization(TicketingAuthPolicies.ViewWorkQueues)
 			.WithName("GetTeamTicketQueue");
 
 		tickets.MapGet("/queue", async (
@@ -306,20 +306,17 @@ internal static class TicketEndpoints
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var attachmentsResult = await ticketWorkflow.GetAttachmentsAsync(ticketId, cancellationToken: cancellationToken);
-				if (attachmentsResult.IsFailure)
+				var attachmentResult = await ticketWorkflow.GetAttachmentAsync(ticketId, attachmentId, cancellationToken);
+				if (attachmentResult.IsFailure)
 				{
-					return DomainHttpResultMapper.ToProblem(attachmentsResult.Error!);
+					return DomainHttpResultMapper.ToProblem(attachmentResult.Error!);
 				}
-
-				var attachment = attachmentsResult.Value?.FirstOrDefault(
-					item => string.Equals(item.AttachmentId, attachmentId, StringComparison.OrdinalIgnoreCase));
 
 				var streamResult = await ticketWorkflow.OpenAttachmentAsync(ticketId, attachmentId, cancellationToken);
 				return DomainHttpResultMapper.ToFile(
 					streamResult,
-					attachment?.ContentType ?? "application/octet-stream",
-					attachment?.OriginalFileName ?? attachmentId);
+					attachmentResult.Value!.ContentType ?? "application/octet-stream",
+					attachmentResult.Value.OriginalFileName);
 			})
 			.WithName("DownloadTicketAttachment");
 

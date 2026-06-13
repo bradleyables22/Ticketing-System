@@ -142,14 +142,21 @@ internal sealed class AzureTeamStore : ITeamStore
 	{
 		var partitionKey = StorageKeys.TeamDefinitionPartition();
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.Teams
-			.QueryAsync<TeamEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TeamEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (includeInactive || entity.IsActive)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -164,14 +171,21 @@ internal sealed class AzureTeamStore : ITeamStore
 
 		var partitionKey = StorageKeys.TeamMemberByTeamPartition(teamId);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TeamMembers
-			.QueryAsync<TeamMemberEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TeamMemberEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (includeInactive || entity.IsActive)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -186,14 +200,21 @@ internal sealed class AzureTeamStore : ITeamStore
 
 		var partitionKey = StorageKeys.TeamMemberByUserPartition(userOid);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TeamMembers
-			.QueryAsync<TeamMemberEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TeamMemberEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (includeInactive || entity.IsActive)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
@@ -207,14 +228,21 @@ internal sealed class AzureTeamStore : ITeamStore
 		var filter = NormalizeOptional(teamId) is { } normalizedTeamId
 			? TableClient.CreateQueryFilter($"TeamId eq {normalizedTeamId}")
 			: null;
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TeamRouting
-			.QueryAsync<TeamCategoryAssignmentEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TeamCategoryAssignmentEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (includeInactive || entity.IsActive)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}

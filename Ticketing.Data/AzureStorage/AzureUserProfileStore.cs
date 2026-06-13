@@ -58,10 +58,11 @@ internal sealed class AzureUserProfileStore : IUserProfileStore
 	{
 		var normalizedQuery = NormalizeOptional(query);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.UserProfilePartition()}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
 		var returned = 0;
 
 		await foreach (var entity in _clients.UserProfiles
-			.QueryAsync<UserProfileEntity>(filter, cancellationToken: cancellationToken)
+			.QueryAsync<UserProfileEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (!includeInactive && !entity.IsActive)
@@ -77,7 +78,7 @@ internal sealed class AzureUserProfileStore : IUserProfileStore
 			yield return entity.ToRecord();
 			returned++;
 
-			if (pageSize.HasValue && returned >= pageSize.Value)
+			if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
 			{
 				yield break;
 			}

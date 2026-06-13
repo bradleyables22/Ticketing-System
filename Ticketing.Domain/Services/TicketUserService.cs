@@ -85,11 +85,9 @@ internal sealed class TicketUserService : ITicketUserService
 				throw new TicketingForbiddenException("Only technicians, managers, and admins can search users.");
 			}
 
+			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var canIncludeInactive = includeInactive && _permissions.CanManageTeams();
-			return await _userProfileStore.SearchAsync(query, canIncludeInactive, NormalizePageSize(pageSize), cancellationToken)
-				.ToReadOnlyListAsync(cancellationToken);
+			return await _userProfileStore.SearchAsync(query, canIncludeInactive, normalizedPageSize, cancellationToken)
+				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
 		});
-
-	private static int NormalizePageSize(int? pageSize) =>
-		Math.Clamp(pageSize.GetValueOrDefault(50), 1, 500);
 }

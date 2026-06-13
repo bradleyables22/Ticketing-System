@@ -70,14 +70,21 @@ internal sealed class AzureTicketNoteStore : ITicketNoteStore
 
 		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
 		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		var normalizedPageSize = AzureTablePageLimits.Normalize(pageSize);
+		var returned = 0;
 
 		await foreach (var entity in _clients.TicketNotes
-			.QueryAsync<TicketNoteEntity>(filter, maxPerPage: pageSize, cancellationToken: cancellationToken)
+			.QueryAsync<TicketNoteEntity>(filter, maxPerPage: normalizedPageSize, cancellationToken: cancellationToken)
 			.ConfigureAwait(false))
 		{
 			if (!entity.IsInternal || includeInternal)
 			{
 				yield return entity.ToRecord();
+				returned++;
+				if (AzureTablePageLimits.IsFull(normalizedPageSize, returned))
+				{
+					yield break;
+				}
 			}
 		}
 	}
