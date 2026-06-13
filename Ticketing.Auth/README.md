@@ -274,7 +274,7 @@ Hosters can override the challenge scopes if a client requires explicit API scop
 
 ## Host Configuration
 
-Required auth settings:
+Required auth settings for Entra mode:
 
 ```text
 TICKETING_AUTH_TENANT_ID
@@ -383,6 +383,79 @@ scope
 ```
 
 `oid` is required for domain operations. Missing or unauthenticated principals become domain errors that map to `401`.
+
+## Development Auth
+
+Development auth is available only when `ASPNETCORE_ENVIRONMENT=Development`.
+
+Enable it with:
+
+```text
+TicketingAuth__Mode=Development
+```
+
+`Ticketing.Server/appsettings.Development.json` enables this by default.
+
+In development mode, the API uses a local authentication handler instead of Entra JWT bearer validation. The handler creates an authenticated principal with normal ticketing claims:
+
+```text
+oid
+tid
+name
+email
+preferred_username
+upn
+roles
+scp
+```
+
+Default local user:
+
+```text
+oid: local-admin
+tid: local-tenant
+name: Local Admin
+email: local.admin@ticketing.test
+roles: Ticket.Admin, Ticket.Manager, Ticket.Technician
+scopes: Ticket.System, Ticket.Manage, Ticket.Write, Ticket.Read
+```
+
+This is intentionally not a production bypass. If `TicketingAuth__Mode=Development` is set outside the Development environment, startup fails.
+
+Development auth settings:
+
+```text
+TICKETING_AUTH_MODE
+TICKETING_AUTH_DEV_USER_OID
+TICKETING_AUTH_DEV_TENANT_ID
+TICKETING_AUTH_DEV_DISPLAY_NAME
+TICKETING_AUTH_DEV_EMAIL
+TICKETING_AUTH_DEV_ROLES
+TICKETING_AUTH_DEV_SCOPES
+TICKETING_AUTH_DEV_ALLOW_HEADER_OVERRIDES
+
+TicketingAuth__Mode
+TicketingAuth__Development__UserOid
+TicketingAuth__Development__TenantId
+TicketingAuth__Development__DisplayName
+TicketingAuth__Development__Email
+TicketingAuth__Development__Roles
+TicketingAuth__Development__Scopes
+TicketingAuth__Development__AllowHeaderOverrides
+```
+
+Header overrides are enabled by default in development mode. They are useful for testing user and permission cases from Scalar or curl:
+
+```text
+X-Ticketing-Dev-User-Oid
+X-Ticketing-Dev-Tenant-Id
+X-Ticketing-Dev-Display-Name
+X-Ticketing-Dev-Email
+X-Ticketing-Dev-Roles
+X-Ticketing-Dev-Scopes
+```
+
+List values can be comma, semicolon, or space-separated.
 
 ## Public Endpoints Owned By Auth
 

@@ -5,6 +5,7 @@ using Ticketing.Data.DependencyInjection;
 using Ticketing.Domain.DependencyInjection;
 using Ticketing.Rest.DependencyInjection;
 using Ticketing.Rest.Endpoints;
+using Ticketing.Server.LocalDevelopment;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -12,34 +13,53 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var azureAdTenantId =
-	builder.Configuration["TICKETING_AUTH_TENANT_ID"]
-	?? builder.Configuration["AzureAd:TenantId"]
-	?? throw new InvalidOperationException(
-		"Azure AD tenant id is required. Set TICKETING_AUTH_TENANT_ID or AzureAd__TenantId.");
-
-var azureAdClientId =
-	builder.Configuration["TICKETING_AUTH_CLIENT_ID"]
-	?? builder.Configuration["AzureAd:ClientId"]
-	?? throw new InvalidOperationException(
-		"Azure AD client id is required. Set TICKETING_AUTH_CLIENT_ID or AzureAd__ClientId.");
-
 var azureStorageConnectionString =
 	builder.Configuration["TICKETING_AZURE_STORAGE_CONNECTION_STRING"]
 	?? builder.Configuration.GetConnectionString("AzureStorage")
+	?? (builder.Environment.IsDevelopment() ? "UseDevelopmentStorage=true" : null)
 	?? throw new InvalidOperationException(
 		"Azure Storage connection string is required. Set TICKETING_AZURE_STORAGE_CONNECTION_STRING or ConnectionStrings__AzureStorage.");
 
-builder.Services.AddTicketingAuth(
-	azureAdTenantId,
-	azureAdClientId,
-	options =>
-	{
-		options.Instance = builder.Configuration["TICKETING_AUTH_INSTANCE"] ?? options.Instance;
-		ConfigureRoles(options.Roles, builder.Configuration);
-		ConfigureScopes(options.Scopes, builder.Configuration);
-		ConfigureOAuthDiscovery(options.OAuthDiscovery, builder.Configuration);
-	});
+var authMode = GetConfiguredValue(builder.Configuration, "TICKETING_AUTH_MODE", "TicketingAuth:Mode")
+	?? (builder.Environment.IsDevelopment() ? "Development" : "Entra");
+var useDevelopmentAuth = IsDevelopmentAuthMode(authMode);
+if (useDevelopmentAuth && !builder.Environment.IsDevelopment())
+{
+	throw new InvalidOperationException("Ticketing development auth can only be enabled when ASPNETCORE_ENVIRONMENT is Development.");
+}
+
+if (useDevelopmentAuth)
+{
+	builder.Services.AddTicketingDevelopmentAuth(
+		options => ConfigureCommonAuthOptions(options, builder.Configuration),
+		options => ConfigureDevelopmentAuth(options, builder.Configuration));
+}
+else
+{
+	var azureAdTenantId =
+		builder.Configuration["TICKETING_AUTH_TENANT_ID"]
+		?? builder.Configuration["AzureAd:TenantId"]
+		?? throw new InvalidOperationException(
+			"Azure AD tenant id is required. Set TICKETING_AUTH_TENANT_ID or AzureAd__TenantId.");
+
+	var azureAdClientId =
+		builder.Configuration["TICKETING_AUTH_CLIENT_ID"]
+		?? builder.Configuration["AzureAd:ClientId"]
+		?? throw new InvalidOperationException(
+			"Azure AD client id is required. Set TICKETING_AUTH_CLIENT_ID or AzureAd__ClientId.");
+
+	builder.Services.AddTicketingAuth(
+		azureAdTenantId,
+		azureAdClientId,
+		options => ConfigureCommonAuthOptions(options, builder.Configuration));
+}
+
+if (builder.Environment.IsDevelopment())
+{
+	builder.Services.Configure<LocalAzuriteOptions>(
+		builder.Configuration.GetSection("Ticketing:LocalDevelopment:Azurite"));
+	builder.Services.AddHostedService<LocalAzuriteHostedService>();
+}
 
 builder.Services.AddTicketingData(azureStorageConnectionString);
 builder.Services.AddTicketingDomain();
@@ -90,6 +110,16 @@ app.MapTicketingRestApi();
 app.MapHealthChecks("/health", new HealthCheckOptions()).AllowAnonymous();
 
 app.Run();
+
+static void ConfigureCommonAuthOptions(
+	TicketingAuthOptions options,
+	IConfiguration configuration)
+{
+	options.Instance = configuration["TICKETING_AUTH_INSTANCE"] ?? options.Instance;
+	ConfigureRoles(options.Roles, configuration);
+	ConfigureScopes(options.Scopes, configuration);
+	ConfigureOAuthDiscovery(options.OAuthDiscovery, configuration);
+}
 
 static void ConfigureRoles(
 	TicketingAppRoleOptions options,
@@ -293,6 +323,82 @@ static bool GetConfiguredBool(
 		? parsed
 		: currentValue;
 }
+
+static void ConfigureDevelopmentAuth(
+	TicketingDevelopmentAuthOptions options,
+	IConfiguration configuration)
+{
+	options.UserOid = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_USER_OID",
+		"TicketingAuth:Development:UserOid")
+		?? options.UserOid;
+	options.TenantId = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_TENANT_ID",
+		"TicketingAuth:Development:TenantId")
+		?? options.TenantId;
+	options.DisplayName = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_DISPLAY_NAME",
+		"TicketingAuth:Development:DisplayName")
+		?? options.DisplayName;
+	options.Email = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_EMAIL",
+		"TicketingAuth:Development:Email")
+		?? options.Email;
+	options.Roles = GetConfiguredList(
+		configuration,
+		"TICKETING_AUTH_DEV_ROLES",
+		"TicketingAuth:Development:Roles")
+		?? options.Roles;
+	options.Scopes = GetConfiguredList(
+		configuration,
+		"TICKETING_AUTH_DEV_SCOPES",
+		"TicketingAuth:Development:Scopes")
+		?? options.Scopes;
+	options.AllowHeaderOverrides = GetConfiguredBool(
+		configuration,
+		options.AllowHeaderOverrides,
+		"TICKETING_AUTH_DEV_ALLOW_HEADER_OVERRIDES",
+		"TicketingAuth:Development:AllowHeaderOverrides");
+	options.UserOidHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_USER_OID_HEADER",
+		"TicketingAuth:Development:UserOidHeader")
+		?? options.UserOidHeader;
+	options.TenantIdHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_TENANT_ID_HEADER",
+		"TicketingAuth:Development:TenantIdHeader")
+		?? options.TenantIdHeader;
+	options.DisplayNameHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_DISPLAY_NAME_HEADER",
+		"TicketingAuth:Development:DisplayNameHeader")
+		?? options.DisplayNameHeader;
+	options.EmailHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_EMAIL_HEADER",
+		"TicketingAuth:Development:EmailHeader")
+		?? options.EmailHeader;
+	options.RolesHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_ROLES_HEADER",
+		"TicketingAuth:Development:RolesHeader")
+		?? options.RolesHeader;
+	options.ScopesHeader = GetConfiguredValue(
+		configuration,
+		"TICKETING_AUTH_DEV_SCOPES_HEADER",
+		"TicketingAuth:Development:ScopesHeader")
+		?? options.ScopesHeader;
+}
+
+static bool IsDevelopmentAuthMode(string authMode) =>
+	authMode.Equals("Development", StringComparison.OrdinalIgnoreCase)
+	|| authMode.Equals("Dev", StringComparison.OrdinalIgnoreCase)
+	|| authMode.Equals("Local", StringComparison.OrdinalIgnoreCase);
 
 static IEnumerable<string> SplitConfiguredList(string value) =>
 	value.Split([';', ',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

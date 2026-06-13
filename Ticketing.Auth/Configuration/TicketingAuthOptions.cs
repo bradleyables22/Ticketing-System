@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+
 namespace Ticketing.Auth.Configuration;
 
 public sealed class TicketingAuthOptions
@@ -120,4 +122,44 @@ public sealed class TicketingOAuthDiscoveryOptions
 	public bool IncludeEmailScope { get; set; } = true;
 
 	public bool IncludeOfflineAccessScope { get; set; } = true;
+}
+
+public sealed class TicketingDevelopmentAuthOptions : AuthenticationSchemeOptions
+{
+	public string UserOid { get; set; } = "local-admin";
+
+	public string TenantId { get; set; } = "local-tenant";
+
+	public string DisplayName { get; set; } = "Local Admin";
+
+	public string Email { get; set; } = "local.admin@ticketing.test";
+
+	public IReadOnlyCollection<string> Roles { get; set; } =
+	[
+		TicketingAppRoles.Admin,
+		TicketingAppRoles.Manager,
+		TicketingAppRoles.Technician
+	];
+
+	public IReadOnlyCollection<string> Scopes { get; set; } =
+	[
+		TicketingAuthScopes.System,
+		TicketingAuthScopes.Manage,
+		TicketingAuthScopes.Write,
+		TicketingAuthScopes.Read
+	];
+
+	public bool AllowHeaderOverrides { get; set; } = true;
+
+	public string UserOidHeader { get; set; } = "X-Ticketing-Dev-User-Oid";
+
+	public string TenantIdHeader { get; set; } = "X-Ticketing-Dev-Tenant-Id";
+
+	public string DisplayNameHeader { get; set; } = "X-Ticketing-Dev-Display-Name";
+
+	public string EmailHeader { get; set; } = "X-Ticketing-Dev-Email";
+
+	public string RolesHeader { get; set; } = "X-Ticketing-Dev-Roles";
+
+	public string ScopesHeader { get; set; } = "X-Ticketing-Dev-Scopes";
 }

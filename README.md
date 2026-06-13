@@ -145,7 +145,7 @@ The domain layer owns rules such as:
 
 ## Server Configuration
 
-The server currently expects this storage environment variable:
+Outside the Development environment, the server expects this storage environment variable:
 
 ```text
 TICKETING_AZURE_STORAGE_CONNECTION_STRING
@@ -156,6 +156,8 @@ Supported configuration fallbacks:
 ```text
 ConnectionStrings__AzureStorage
 ```
+
+The Development environment defaults to `UseDevelopmentStorage=true` for Azurite.
 
 Auth configuration is documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
@@ -168,6 +170,8 @@ builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
 builder.Services.AddOpenApi();
 ```
+
+In Development, `TicketingAuth:Mode=Development` swaps Entra JWT validation for local development auth.
 
 REST endpoints are mapped from `Ticketing.Rest`:
 
@@ -190,6 +194,80 @@ The OpenAPI document is available at:
 ```text
 /openapi/v1.json
 ```
+
+## Local Development
+
+The Development environment is configured to run without Entra ID or an Azure Storage account.
+
+Local development uses:
+
+- development auth from `Ticketing.Auth`
+- auto-started Azurite for local Azure Table, Blob, and Queue Storage
+- `UseDevelopmentStorage=true` from `Ticketing.Server/appsettings.Development.json`
+
+Run the server:
+
+```powershell
+dotnet run --project .\Ticketing.Server
+```
+
+In Development mode, the server checks the local Azurite ports and starts Azurite automatically when `UseDevelopmentStorage=true`.
+
+If Azurite is not installed globally, the server falls back to `npx.cmd -y azurite`. Node.js must be installed.
+
+To install Azurite globally:
+
+```powershell
+npm.cmd install -g azurite
+```
+
+Manual Azurite startup still works:
+
+```powershell
+azurite.cmd --location .\.azurite --skipApiVersionCheck
+```
+
+Or start Azurite and the API together with the helper script:
+
+```powershell
+.\scripts\start-local.ps1
+```
+
+Automatic Azurite startup can be disabled:
+
+```json
+{
+  "Ticketing": {
+    "LocalDevelopment": {
+      "Azurite": {
+        "Enabled": false
+      }
+    }
+  }
+}
+```
+
+The launch profile sets:
+
+```text
+ASPNETCORE_ENVIRONMENT=Development
+```
+
+Development auth creates a local admin user by default, so Scalar can call protected endpoints immediately at:
+
+```text
+https://localhost:7173/api/docs
+```
+
+You can override the local user for a request with development-only headers such as:
+
+```text
+X-Ticketing-Dev-User-Oid
+X-Ticketing-Dev-Roles
+X-Ticketing-Dev-Scopes
+```
+
+Development auth refuses to run outside the Development environment. Full auth behavior and local-user configuration are documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
 ## REST API
 
@@ -235,7 +313,9 @@ Implemented:
 
 - Azure Storage-backed data layer
 - one-time storage startup initializer
+- Azurite-friendly local storage configuration
 - Entra JWT authentication layer
+- development auth for local runs without Entra
 - app roles and policies
 - delegated scope enforcement for client permissions
 - OAuth protected resource metadata and bearer discovery challenges

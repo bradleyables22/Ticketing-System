@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 using Ticketing.Auth.Claims;
 using Ticketing.Auth.Configuration;
+using Ticketing.Auth.Development;
 using Ticketing.Auth.OAuth;
 using Ticketing.Auth.Services;
 
@@ -32,10 +33,7 @@ public static class TicketingAuthServiceCollectionExtensions
 
 		configure?.Invoke(options);
 
-		services.AddSingleton(Options.Create(options));
-		services.AddHttpContextAccessor();
-		services.TryAddSingleton<TicketingOAuthDiscoveryService>();
-		services.AddScoped<ICurrentTicketingUserAccessor, HttpContextCurrentTicketingUserAccessor>();
+		services.AddTicketingAuthCore(options);
 
 		services
 			.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -93,6 +91,54 @@ public static class TicketingAuthServiceCollectionExtensions
 		services.AddAuthorizationBuilder()
 			.AddTicketingPolicies(options);
 
+		return services;
+	}
+
+	public static IServiceCollection AddTicketingDevelopmentAuth(
+		this IServiceCollection services,
+		Action<TicketingAuthOptions>? configure = null,
+		Action<TicketingDevelopmentAuthOptions>? configureDevelopment = null)
+	{
+		var options = new TicketingAuthOptions
+		{
+			TenantId = "local-development",
+			ClientId = "local-ticketing-api",
+			RequireHttpsMetadata = false
+		};
+
+		configure?.Invoke(options);
+		services.AddTicketingAuthCore(options);
+
+		services
+			.AddAuthentication(TicketingDevelopmentAuthenticationDefaults.AuthenticationScheme)
+			.AddScheme<TicketingDevelopmentAuthOptions, TicketingDevelopmentAuthenticationHandler>(
+				TicketingDevelopmentAuthenticationDefaults.AuthenticationScheme,
+				development =>
+				{
+					development.Roles =
+					[
+						options.Roles.Admin,
+						options.Roles.Manager,
+						options.Roles.Technician
+					];
+					development.Scopes = options.Scopes.All;
+					configureDevelopment?.Invoke(development);
+				});
+
+		services.AddAuthorizationBuilder()
+			.AddTicketingPolicies(options);
+
+		return services;
+	}
+
+	private static IServiceCollection AddTicketingAuthCore(
+		this IServiceCollection services,
+		TicketingAuthOptions options)
+	{
+		services.AddSingleton(Options.Create(options));
+		services.AddHttpContextAccessor();
+		services.TryAddSingleton<TicketingOAuthDiscoveryService>();
+		services.AddScoped<ICurrentTicketingUserAccessor, HttpContextCurrentTicketingUserAccessor>();
 		return services;
 	}
 
