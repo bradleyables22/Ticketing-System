@@ -16,7 +16,8 @@ internal static class TicketEndpoints
 	public static RouteGroupBuilder MapTicketEndpoints(this RouteGroupBuilder api)
 	{
 		var tickets = api.MapGroup("/tickets")
-			.WithTags("Tickets");
+			.WithTags("Tickets")
+			.RequireAuthorization(TicketingAuthPolicies.Read);
 
 		tickets.MapPost("/", async (
 				CreateTicketHttpRequest request,
@@ -223,6 +224,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("UpdateTicket");
 
 		tickets.MapPost("/{ticketId}/notes", async (
@@ -242,6 +244,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToCreated(result, note => $"/api/tickets/{note.TicketId}/notes/{note.NoteId}");
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("AddTicketNote");
 
 		tickets.MapGet("/{ticketId}/notes", async (
@@ -283,6 +286,7 @@ internal static class TicketEndpoints
 					attachment => $"/api/tickets/{attachment.TicketId}/attachments/{attachment.AttachmentId}");
 			})
 			.DisableAntiforgery()
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("UploadTicketAttachment");
 
 		tickets.MapGet("/{ticketId}/attachments", async (
@@ -328,6 +332,7 @@ internal static class TicketEndpoints
 				var result = await ticketWorkflow.DeleteAttachmentAsync(ticketId, attachmentId, cancellationToken);
 				return DomainHttpResultMapper.ToNoContent(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("DeleteTicketAttachment");
 
@@ -362,6 +367,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("AssignTicket");
 
@@ -406,6 +412,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("SetTicketStatus");
 
 		tickets.MapPost("/{ticketId}/start", async (
@@ -418,6 +425,7 @@ internal static class TicketEndpoints
 				var result = await ChangeStatusAsync(ticketId, TicketStatus.InProgress, request, ifMatch, ticketWorkflow, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("StartTicket");
 
@@ -431,6 +439,7 @@ internal static class TicketEndpoints
 				var result = await ChangeStatusAsync(ticketId, TicketStatus.PendingRequester, request, ifMatch, ticketWorkflow, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("SetTicketPendingRequester");
 
@@ -444,6 +453,7 @@ internal static class TicketEndpoints
 				var result = await ChangeStatusAsync(ticketId, TicketStatus.PendingVendor, request, ifMatch, ticketWorkflow, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("SetTicketPendingVendor");
 
@@ -457,6 +467,7 @@ internal static class TicketEndpoints
 				var result = await ChangeStatusAsync(ticketId, TicketStatus.Resolved, request, ifMatch, ticketWorkflow, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("ResolveTicket");
 
@@ -470,6 +481,7 @@ internal static class TicketEndpoints
 				var result = await ChangeStatusAsync(ticketId, TicketStatus.Cancelled, request, ifMatch, ticketWorkflow, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("CancelTicket");
 
 		tickets.MapPost("/{ticketId}/close", async (
@@ -490,6 +502,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
 			.WithName("CloseTicket");
 
@@ -511,6 +524,7 @@ internal static class TicketEndpoints
 
 				return DomainHttpResultMapper.ToResult(result);
 			})
+			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("ReopenTicket");
 
 		return tickets;

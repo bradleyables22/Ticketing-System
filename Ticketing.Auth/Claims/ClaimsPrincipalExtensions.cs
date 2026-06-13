@@ -28,7 +28,42 @@ public static class ClaimsPrincipalExtensions
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
 	public static IReadOnlySet<string> GetTicketingScopes(this ClaimsPrincipal principal) =>
-		principal.FindAll(TicketingClaimTypes.Scopes)
+		principal.Claims
+			.Where(claim => claim.Type is TicketingClaimTypes.Scopes or TicketingClaimTypes.Scope)
 			.SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+	public static bool HasAnyTicketingScope(this ClaimsPrincipal principal, IEnumerable<string> acceptedScopes)
+	{
+		var actualScopes = principal.GetTicketingScopes();
+		foreach (var acceptedScope in acceptedScopes)
+		{
+			if (actualScopes.Any(actualScope => ScopeMatches(actualScope, acceptedScope)))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static bool ScopeMatches(string actualScope, string acceptedScope)
+	{
+		if (string.Equals(actualScope, acceptedScope, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+
+		var actualScopeName = GetUnqualifiedScopeName(actualScope);
+		var acceptedScopeName = GetUnqualifiedScopeName(acceptedScope);
+		return string.Equals(actualScopeName, acceptedScopeName, StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static string GetUnqualifiedScopeName(string scope)
+	{
+		var slashIndex = scope.LastIndexOf('/');
+		return slashIndex >= 0 && slashIndex < scope.Length - 1
+			? scope[(slashIndex + 1)..]
+			: scope;
+	}
 }

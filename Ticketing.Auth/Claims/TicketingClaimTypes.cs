@@ -18,5 +18,7 @@ public static class TicketingClaimTypes
 
 	public const string Scopes = "scp";
 
+	public const string Scope = "scope";
+
 	public const string LegacyObjectId = "http://schemas.microsoft.com/identity/claims/objectidentifier";
 }

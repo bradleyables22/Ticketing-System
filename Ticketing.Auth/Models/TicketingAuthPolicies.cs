@@ -13,4 +13,12 @@ public static class TicketingAuthPolicies
 	public const string ManageTaxonomy = "Ticketing.ManageTaxonomy";
 
 	public const string Admin = "Ticketing.Admin";
+
+	public const string Read = "Ticketing.Scope.Read";
+
+	public const string Write = "Ticketing.Scope.Write";
+
+	public const string Manage = "Ticketing.Scope.Manage";
+
+	public const string System = "Ticketing.Scope.System";
 }

@@ -14,7 +14,8 @@ internal static class TeamEndpoints
 	public static RouteGroupBuilder MapTeamEndpoints(this RouteGroupBuilder api)
 	{
 		var teams = api.MapGroup("/teams")
-			.WithTags("Teams");
+			.WithTags("Teams")
+			.RequireAuthorization(TicketingAuthPolicies.Read);
 
 		teams.MapPost("/", async (
 				SaveTeamHttpRequest request,

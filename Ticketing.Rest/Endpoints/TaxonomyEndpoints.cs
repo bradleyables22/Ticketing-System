@@ -14,7 +14,8 @@ internal static class TaxonomyEndpoints
 	public static RouteGroupBuilder MapTaxonomyEndpoints(this RouteGroupBuilder api)
 	{
 		var taxonomy = api.MapGroup("/taxonomy")
-			.WithTags("Taxonomy");
+			.WithTags("Taxonomy")
+			.RequireAuthorization(TicketingAuthPolicies.Read);
 
 		taxonomy.MapGet("/types", async (
 				bool includeInactive,

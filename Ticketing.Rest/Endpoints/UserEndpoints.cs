@@ -19,10 +19,12 @@ internal static class UserEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithTags("Users")
+			.RequireAuthorization(TicketingAuthPolicies.Read)
 			.WithName("GetCurrentUser");
 
 		var users = api.MapGroup("/users")
 			.WithTags("Users")
+			.RequireAuthorization(TicketingAuthPolicies.Read)
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket);
 
 		users.MapGet("/", async (

@@ -44,38 +44,7 @@ REST / MCP / UI
 
 ## Identity And Authorization
 
-Azure AD / Microsoft Entra ID is the identity provider.
-
-The application uses the user's stable Entra object id, the `oid` claim, as the durable user key. Email and display name may be stored as snapshots for historical display, but they are not treated as permanent identifiers.
-
-Current app roles:
-
-```text
-Ticket.Technician
-Ticket.Manager
-Ticket.Admin
-```
-
-Any authenticated tenant user can submit tickets. App roles are for elevated IT access.
-
-High-level permissions:
-
-- Authenticated user: create tickets, view own tickets, add public notes to own tickets.
-- Technician: work tickets assigned to their teams or directly assigned to them.
-- Team Lead: can manage assignment within their team.
-- Manager: manage teams, taxonomy, routing, and broader queues.
-- Admin: full system access.
-
-Current authorization policies:
-
-```text
-Ticketing.SubmitTicket
-Ticketing.ViewAllTickets
-Ticketing.WorkTicket
-Ticketing.ManageTeams
-Ticketing.ManageTaxonomy
-Ticketing.Admin
-```
+Azure AD / Microsoft Entra ID is the identity provider. Auth setup, app roles, delegated scopes, OAuth discovery, host configuration, and runtime behavior are documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
 ## Data Platform
 
@@ -176,27 +145,19 @@ The domain layer owns rules such as:
 
 ## Server Configuration
 
-The server currently expects these environment variables:
+The server currently expects this storage environment variable:
 
 ```text
-TICKETING_AUTH_TENANT_ID
-TICKETING_AUTH_CLIENT_ID
 TICKETING_AZURE_STORAGE_CONNECTION_STRING
-```
-
-Optional:
-
-```text
-TICKETING_AUTH_INSTANCE
 ```
 
 Supported configuration fallbacks:
 
 ```text
-AzureAd__TenantId
-AzureAd__ClientId
 ConnectionStrings__AzureStorage
 ```
+
+Auth configuration is documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
 Current server composition:
 
@@ -213,6 +174,7 @@ REST endpoints are mapped from `Ticketing.Rest`:
 ```csharp
 app.MapOpenApi();
 app.MapScalarApiReference("/api/docs");
+app.MapTicketingOAuthDiscovery();
 app.MapTicketingRestApi();
 app.MapHealthChecks("/health");
 ```
@@ -255,6 +217,8 @@ Dashboard endpoints currently expose live summary counts from the ticket project
 
 System endpoints currently expose admin-only system info, and `/health` exposes the ASP.NET Core health endpoint.
 
+REST auth requirements are documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
+
 ## Build
 
 Build the solution:
@@ -271,6 +235,8 @@ Implemented:
 - one-time storage startup initializer
 - Entra JWT authentication layer
 - app roles and policies
+- delegated scope enforcement for client permissions
+- OAuth protected resource metadata and bearer discovery challenges
 - domain workflow and permission layer
 - domain result wrappers for service responses
 - REST minimal API endpoint layer
