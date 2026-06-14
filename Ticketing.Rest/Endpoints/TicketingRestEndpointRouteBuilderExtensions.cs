@@ -14,7 +14,6 @@ public static class TicketingRestEndpointRouteBuilderExtensions
 		api.MapTeamEndpoints();
 		api.MapTaxonomyEndpoints();
 		api.MapUserEndpoints();
-		api.MapDashboardEndpoints();
 		api.MapSystemEndpoints();
 
 		return endpoints;

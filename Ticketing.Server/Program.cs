@@ -1,6 +1,7 @@
 using Ticketing.Auth.Configuration;
 using Ticketing.Auth.DependencyInjection;
 using Ticketing.Auth.Endpoints;
+using Ticketing.Data.Configuration;
 using Ticketing.Data.DependencyInjection;
 using Ticketing.Domain.DependencyInjection;
 using Ticketing.Rest.DependencyInjection;
@@ -62,6 +63,7 @@ if (builder.Environment.IsDevelopment())
 }
 
 builder.Services.AddTicketingData(azureStorageConnectionString);
+builder.Services.AddTicketingGraphUserDirectory(options => ConfigureGraphUserDirectory(options, builder.Configuration));
 builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
 builder.Services.AddOpenApi(options =>
@@ -393,6 +395,39 @@ static void ConfigureDevelopmentAuth(
 		"TICKETING_AUTH_DEV_SCOPES_HEADER",
 		"TicketingAuth:Development:ScopesHeader")
 		?? options.ScopesHeader;
+}
+
+static void ConfigureGraphUserDirectory(
+	TicketingGraphUserDirectoryOptions options,
+	IConfiguration configuration)
+{
+	options.Enabled = GetConfiguredBool(
+		configuration,
+		options.Enabled,
+		"TICKETING_GRAPH_ENABLED",
+		"Ticketing:Graph:Enabled");
+	options.TenantId = GetConfiguredValue(
+		configuration,
+		"TICKETING_GRAPH_TENANT_ID",
+		"Ticketing:Graph:TenantId",
+		"TICKETING_AUTH_TENANT_ID",
+		"AzureAd:TenantId")
+		?? options.TenantId;
+	options.ClientId = GetConfiguredValue(
+		configuration,
+		"TICKETING_GRAPH_CLIENT_ID",
+		"Ticketing:Graph:ClientId")
+		?? options.ClientId;
+	options.ClientSecret = GetConfiguredValue(
+		configuration,
+		"TICKETING_GRAPH_CLIENT_SECRET",
+		"Ticketing:Graph:ClientSecret")
+		?? options.ClientSecret;
+	options.GraphBaseUri = GetConfiguredValue(
+		configuration,
+		"TICKETING_GRAPH_BASE_URI",
+		"Ticketing:Graph:GraphBaseUri")
+		?? options.GraphBaseUri;
 }
 
 static bool IsDevelopmentAuthMode(string authMode) =>

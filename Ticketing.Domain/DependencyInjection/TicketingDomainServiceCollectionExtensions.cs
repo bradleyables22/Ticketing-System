@@ -13,7 +13,6 @@ public static class TicketingDomainServiceCollectionExtensions
 		services.AddScoped<ITeamManagementService, TeamManagementService>();
 		services.AddScoped<ITaxonomyManagementService, TaxonomyManagementService>();
 		services.AddScoped<ITicketUserService, TicketUserService>();
-		services.AddScoped<ITicketDashboardService, TicketDashboardService>();
 
 		return services;
 	}

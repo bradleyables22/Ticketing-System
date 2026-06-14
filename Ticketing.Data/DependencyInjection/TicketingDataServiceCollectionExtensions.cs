@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Ticketing.Data.AzureStorage;
 using Ticketing.Data.AzureStorage.Internal;
 using Ticketing.Data.Configuration;
+using Ticketing.Data.Graph;
 using Ticketing.Data.Stores;
 
 namespace Ticketing.Data.DependencyInjection;
@@ -51,6 +52,22 @@ public static class TicketingDataServiceCollectionExtensions
 		services.AddSingleton<IUserProfileStore, AzureUserProfileStore>();
 		services.AddSingleton<ITicketAuditStore, AzureTicketAuditStore>();
 		services.AddSingleton<ITicketWorkQueue, AzureTicketWorkQueue>();
+
+		return services;
+	}
+
+	public static IServiceCollection AddTicketingGraphUserDirectory(
+		this IServiceCollection services,
+		Action<TicketingGraphUserDirectoryOptions> configure)
+	{
+		var options = new TicketingGraphUserDirectoryOptions();
+		configure(options);
+
+		services.AddSingleton(Options.Create(options));
+		if (options.Enabled)
+		{
+			services.AddSingleton<IUserDirectoryStore, GraphUserDirectoryStore>();
+		}
 
 		return services;
 	}

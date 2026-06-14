@@ -58,6 +58,7 @@ internal static class TicketEndpoints
 				DateTimeOffset? closedFromUtc,
 				DateTimeOffset? closedToUtc,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
@@ -78,7 +79,8 @@ internal static class TicketEndpoints
 						OpenedToUtc = openedToUtc,
 						ClosedFromUtc = closedFromUtc,
 						ClosedToUtc = closedToUtc,
-						PageSize = pageSize
+						PageSize = pageSize,
+						PageToken = pageToken
 					},
 					cancellationToken);
 
@@ -109,10 +111,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/mine", async (
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetMyTicketsAsync(status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetMyTicketsAsync(status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetMyTickets");
@@ -120,10 +123,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/assigned-to-me", async (
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetAssignedToMeAsync(status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetAssignedToMeAsync(status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ViewWorkQueues)
@@ -132,10 +136,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/unassigned", async (
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetUnassignedAsync(status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetUnassignedAsync(status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ViewAllTickets)
@@ -144,10 +149,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/status/{status}", async (
 				TicketStatus status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetByStatusAsync(status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetByStatusAsync(status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ViewAllTickets)
@@ -157,10 +163,11 @@ internal static class TicketEndpoints
 				string teamId,
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetTeamQueueAsync(teamId, status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetTeamQueueAsync(teamId, status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ViewWorkQueues)
@@ -172,6 +179,7 @@ internal static class TicketEndpoints
 				string? subcategoryId,
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
@@ -181,6 +189,7 @@ internal static class TicketEndpoints
 					subcategoryId,
 					status,
 					pageSize,
+					pageToken,
 					cancellationToken);
 
 				return DomainHttpResultMapper.ToResult(result);
@@ -191,10 +200,11 @@ internal static class TicketEndpoints
 				string tag,
 				TicketStatus? status,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetByTagAsync(tag, status, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetByTagAsync(tag, status, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketsByTag");
@@ -250,10 +260,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/{ticketId}/notes", async (
 				string ticketId,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetNotesAsync(ticketId, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetNotesAsync(ticketId, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketNotes");
@@ -292,10 +303,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/{ticketId}/attachments", async (
 				string ticketId,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetAttachmentsAsync(ticketId, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetAttachmentsAsync(ticketId, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketAttachments");
@@ -336,10 +348,11 @@ internal static class TicketEndpoints
 		tickets.MapGet("/{ticketId}/audit", async (
 				string ticketId,
 				int? pageSize,
+				string? pageToken,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketWorkflow.GetAuditAsync(ticketId, pageSize, cancellationToken);
+				var result = await ticketWorkflow.GetAuditAsync(ticketId, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)

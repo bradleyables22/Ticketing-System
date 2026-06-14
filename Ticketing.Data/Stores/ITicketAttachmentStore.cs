@@ -12,6 +12,13 @@ public interface ITicketAttachmentStore
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<PagedResult<TicketAttachmentRecord>> GetForTicketPageAsync(
+		string ticketId,
+		bool includeDeleted = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
+
 	Task<TicketAttachmentRecord?> GetAsync(
 		string ticketId,
 		string attachmentId,

@@ -130,7 +130,6 @@ Current domain services:
 - `ITeamManagementService`
 - `ITaxonomyManagementService`
 - `ITicketUserService`
-- `ITicketDashboardService`
 
 Public domain workflow and management services return `DomainResult<T>` so REST, MCP, and future UI adapters can map success/failure explicitly without catching business-rule exceptions. Permission evaluation is kept as an internal domain collaborator.
 
@@ -166,6 +165,7 @@ Current server composition:
 ```csharp
 builder.Services.AddTicketingAuth(tenantId, clientId);
 builder.Services.AddTicketingData(azureStorageConnectionString);
+builder.Services.AddTicketingGraphUserDirectory(...);
 builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
 builder.Services.AddOpenApi();
@@ -280,7 +280,6 @@ Current route groups:
 - `/api/teams`
 - `/api/taxonomy`
 - `/api/users`
-- `/api/dashboard`
 - `/api/system`
 
 Ticket endpoints currently cover create, read, search, queues, notes, attachments, audit, assignment, team reassignment, status transitions, close, reopen, and cancel workflows.
@@ -289,15 +288,53 @@ Team endpoints currently cover team maintenance, membership maintenance, and cat
 
 Taxonomy endpoints currently cover types, categories, and subcategories.
 
-User endpoints currently expose the authenticated user's profile, roles, permissions, and team memberships. User search currently reads from the local `UserProfiles` cache that is populated as authenticated users interact with the system. A future Microsoft Graph integration can expand this to live Entra user search.
-
-Dashboard endpoints currently expose live summary counts from the ticket projection tables.
+User endpoints currently expose the authenticated user's profile, roles, permissions, and team memberships. User search can use Microsoft Graph when configured and falls back to the local `UserProfiles` cache in development/offline mode.
 
 System endpoints currently expose admin-only system info, and `/health` exposes the ASP.NET Core health endpoint.
 
 REST auth requirements are documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
 
-List-style REST endpoints accept `pageSize`. Missing values default to 50 and values above 500 are clamped to 500. The current API returns bounded result sets; continuation-token response envelopes are still a future REST contract upgrade.
+List-style REST endpoints accept `pageSize` and `pageToken`. Missing page sizes default to 50 and values above 500 are clamped to 500. List responses use this envelope:
+
+```json
+{
+  "items": [],
+  "nextPageToken": null
+}
+```
+
+Pass `nextPageToken` back as `pageToken` to read the next page.
+
+## Microsoft Graph User Search
+
+When configured, `/api/users` searches Microsoft Graph users with application permissions, then refreshes the local profile cache with returned users.
+
+Required Microsoft Graph app permission:
+
+```text
+User.Read.All
+```
+
+Configuration:
+
+```text
+TICKETING_GRAPH_ENABLED=true
+TICKETING_GRAPH_TENANT_ID=<tenant-id>
+TICKETING_GRAPH_CLIENT_ID=<client-id>
+TICKETING_GRAPH_CLIENT_SECRET=<client-secret>
+```
+
+Supported configuration keys:
+
+```text
+Ticketing__Graph__Enabled
+Ticketing__Graph__TenantId
+Ticketing__Graph__ClientId
+Ticketing__Graph__ClientSecret
+Ticketing__Graph__GraphBaseUri
+```
+
+If Graph is not enabled, user search uses the local profile cache.
 
 ## Build
 
@@ -327,9 +364,10 @@ Implemented:
 - Scalar API reference and OpenAPI document mapping
 - OpenAPI bearer authentication metadata
 - current-user context and cached user lookup
+- Microsoft Graph-backed user search with local cache fallback
 - ticket search endpoint backed by existing projection tables
 - ticket status transition endpoints
-- dashboard summary endpoint
+- continuation-token response envelopes for REST list endpoints
 - admin system info and health endpoint
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 
@@ -337,12 +375,10 @@ Not yet implemented:
 
 - MCP surface
 - UI
-- Microsoft Graph-backed live user search
 - projection repair worker
 - notification worker
 - SLA and escalation rules
 - full search/reporting strategy
-- continuation-token response envelopes for long REST lists
 - automated tests
 - production observability and health checks
 
@@ -350,7 +386,6 @@ Not yet implemented:
 
 
 1. Add initial integration tests against a development Azure Storage Account or Azurite where compatible.
-2. Add Microsoft Graph-backed user search for assignment workflows.
-3. Add background queue consumers for projection repair and notifications.
-4. Add production observability around storage latency, authorization failures, and endpoint error rates.
-5. Start the first UI or MCP surface on top of the domain layer.
+2. Add background queue consumers for projection repair and notifications.
+3. Add production observability around storage latency, authorization failures, and endpoint error rates.
+4. Start the first UI or MCP surface on top of the domain layer.

@@ -13,4 +13,11 @@ public interface IUserProfileStore
 		bool includeInactive = false,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
+
+	Task<PagedResult<TicketUserProfile>> SearchPageAsync(
+		string? query,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
 }

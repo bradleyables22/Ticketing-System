@@ -85,6 +85,24 @@ internal sealed class AzureUserProfileStore : IUserProfileStore
 		}
 	}
 
+	public Task<PagedResult<TicketUserProfile>> SearchPageAsync(
+		string? query,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		var normalizedQuery = NormalizeOptional(query);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.UserProfilePartition()}");
+		return AzureTablePagedQueries.QueryPageAsync<UserProfileEntity, TicketUserProfile>(
+			_clients.UserProfiles,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => (includeInactive || entity.IsActive) && Matches(entity, normalizedQuery) ? entity.ToRecord() : null,
+			cancellationToken);
+	}
+
 	private static string? NormalizeOptional(string? value) =>
 		string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 

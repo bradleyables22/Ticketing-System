@@ -87,42 +87,42 @@ internal sealed class TaxonomyManagementService : ITaxonomyManagementService
 				cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TicketTypeRecord>>> GetTypesAsync(
+	public Task<DomainResult<PagedResult<TicketTypeRecord>>> GetTypesAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TicketTypeRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TicketTypeRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			_currentUser.RequireUserOid();
-			return await _taxonomyStore.GetTypesAsync(CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _taxonomyStore.GetTypesPageAsync(CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TicketCategoryRecord>>> GetCategoriesAsync(
+	public Task<DomainResult<PagedResult<TicketCategoryRecord>>> GetCategoriesAsync(
 		string typeId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TicketCategoryRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TicketCategoryRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			_currentUser.RequireUserOid();
-			return await _taxonomyStore.GetCategoriesAsync(typeId, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _taxonomyStore.GetCategoriesPageAsync(typeId, CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TicketSubcategoryRecord>>> GetSubcategoriesAsync(
+	public Task<DomainResult<PagedResult<TicketSubcategoryRecord>>> GetSubcategoriesAsync(
 		string categoryId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TicketSubcategoryRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TicketSubcategoryRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			_currentUser.RequireUserOid();
-			return await _taxonomyStore.GetSubcategoriesAsync(categoryId, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _taxonomyStore.GetSubcategoriesPageAsync(categoryId, CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
 	private void EnsureCanManageTaxonomy()

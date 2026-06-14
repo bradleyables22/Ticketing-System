@@ -31,10 +31,11 @@ internal static class UserEndpoints
 				string? query,
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITicketUserService ticketUsers,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await ticketUsers.SearchUsersAsync(query, includeInactive, pageSize, cancellationToken);
+				var result = await ticketUsers.SearchUsersAsync(query, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("SearchUsers");

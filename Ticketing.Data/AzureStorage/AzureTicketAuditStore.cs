@@ -40,4 +40,23 @@ internal sealed class AzureTicketAuditStore : ITicketAuditStore
 			}
 		}
 	}
+
+	public Task<PagedResult<TicketAuditEventRecord>> GetForTicketPageAsync(
+		string ticketId,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(ticketId);
+
+		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketAuditEntity, TicketAuditEventRecord>(
+			_clients.TicketAudit,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.ToRecord(),
+			cancellationToken);
+	}
 }

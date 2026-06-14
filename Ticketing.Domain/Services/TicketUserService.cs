@@ -10,17 +10,20 @@ internal sealed class TicketUserService : ITicketUserService
 {
 	private readonly CurrentUserService _currentUser;
 	private readonly IUserProfileStore _userProfileStore;
+	private readonly IUserDirectoryStore? _userDirectoryStore;
 	private readonly ITeamStore _teamStore;
 	private readonly ITicketPermissionService _permissions;
 
 	public TicketUserService(
 		CurrentUserService currentUser,
 		IUserProfileStore userProfileStore,
+		IEnumerable<IUserDirectoryStore> userDirectoryStores,
 		ITeamStore teamStore,
 		ITicketPermissionService permissions)
 	{
 		_currentUser = currentUser;
 		_userProfileStore = userProfileStore;
+		_userDirectoryStore = userDirectoryStores.FirstOrDefault();
 		_teamStore = teamStore;
 		_permissions = permissions;
 	}
@@ -72,12 +75,13 @@ internal sealed class TicketUserService : ITicketUserService
 				?? throw new TicketingNotFoundException("User", userOid);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TicketUserProfile>>> SearchUsersAsync(
+	public Task<DomainResult<PagedResult<TicketUserProfile>>> SearchUsersAsync(
 		string? query,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TicketUserProfile>>.TryAsync(async () =>
+		DomainResult<PagedResult<TicketUserProfile>>.TryAsync(async () =>
 		{
 			_currentUser.RequireUserOid();
 			if (!_permissions.IsTechnicianOrAbove())
@@ -87,7 +91,27 @@ internal sealed class TicketUserService : ITicketUserService
 
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var canIncludeInactive = includeInactive && _permissions.CanManageTeams();
-			return await _userProfileStore.SearchAsync(query, canIncludeInactive, normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			if (_userDirectoryStore is not null)
+			{
+				var graphPage = await _userDirectoryStore.SearchUsersAsync(query, canIncludeInactive, normalizedPageSize, pageToken, cancellationToken);
+				foreach (var profile in graphPage.Items)
+				{
+					await _userProfileStore.UpsertAsync(
+						new UpsertUserProfileRequest
+						{
+							UserOid = profile.UserOid,
+							DisplayName = profile.DisplayName,
+							Email = profile.Email,
+							Department = profile.Department,
+							JobTitle = profile.JobTitle,
+							IsActive = profile.IsActive
+						},
+						cancellationToken);
+				}
+
+				return graphPage;
+			}
+
+			return await _userProfileStore.SearchPageAsync(query, canIncludeInactive, normalizedPageSize, pageToken, cancellationToken);
 		});
 }

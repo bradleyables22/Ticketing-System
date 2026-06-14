@@ -15,25 +15,29 @@ public interface ITeamManagementService
 
 	Task<DomainResult<TeamRecord>> GetTeamAsync(string teamId, CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TeamRecord>>> GetTeamsAsync(
+	Task<DomainResult<PagedResult<TeamRecord>>> GetTeamsAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMyMembershipsAsync(
+	Task<DomainResult<PagedResult<TeamMemberRecord>>> GetMyMembershipsAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMembersAsync(
+	Task<DomainResult<PagedResult<TeamMemberRecord>>> GetMembersAsync(
 		string teamId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TeamCategoryAssignmentRecord>>> GetCategoryAssignmentsAsync(
+	Task<DomainResult<PagedResult<TeamCategoryAssignmentRecord>>> GetCategoryAssignmentsAsync(
 		string? teamId = null,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 }

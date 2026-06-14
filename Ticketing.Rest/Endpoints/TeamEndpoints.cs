@@ -61,10 +61,11 @@ internal static class TeamEndpoints
 		teams.MapGet("/", async (
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITeamManagementService teamManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await teamManagement.GetTeamsAsync(includeInactive, pageSize, cancellationToken);
+				var result = await teamManagement.GetTeamsAsync(includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
@@ -73,10 +74,11 @@ internal static class TeamEndpoints
 		teams.MapGet("/my-memberships", async (
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITeamManagementService teamManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await teamManagement.GetMyMembershipsAsync(includeInactive, pageSize, cancellationToken);
+				var result = await teamManagement.GetMyMembershipsAsync(includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetMyTeamMemberships");
@@ -118,10 +120,11 @@ internal static class TeamEndpoints
 				string teamId,
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITeamManagementService teamManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await teamManagement.GetMembersAsync(teamId, includeInactive, pageSize, cancellationToken);
+				var result = await teamManagement.GetMembersAsync(teamId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
@@ -159,10 +162,11 @@ internal static class TeamEndpoints
 				string? teamId,
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITeamManagementService teamManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await teamManagement.GetCategoryAssignmentsAsync(teamId, includeInactive, pageSize, cancellationToken);
+				var result = await teamManagement.GetCategoryAssignmentsAsync(teamId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)

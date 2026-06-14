@@ -5,6 +5,9 @@ internal static class AzureTablePageLimits
 	public static int? Normalize(int? pageSize) =>
 		pageSize.HasValue ? Math.Max(1, pageSize.Value) : null;
 
+	public static int NormalizeResultSize(int? pageSize) =>
+		Math.Clamp(pageSize.GetValueOrDefault(50), 1, 500);
+
 	public static int? Remaining(int? pageSize, int returned)
 	{
 		var normalized = Normalize(pageSize);

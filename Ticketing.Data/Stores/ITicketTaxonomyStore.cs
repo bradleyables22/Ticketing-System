@@ -15,15 +15,35 @@ public interface ITicketTaxonomyStore
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<PagedResult<TicketTypeRecord>> GetTypesPageAsync(
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
+
 	IAsyncEnumerable<TicketCategoryRecord> GetCategoriesAsync(
 		string typeId,
 		bool includeInactive = false,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<PagedResult<TicketCategoryRecord>> GetCategoriesPageAsync(
+		string typeId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
+
 	IAsyncEnumerable<TicketSubcategoryRecord> GetSubcategoriesAsync(
 		string categoryId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		CancellationToken cancellationToken = default);
+
+	Task<PagedResult<TicketSubcategoryRecord>> GetSubcategoriesPageAsync(
+		string categoryId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 }

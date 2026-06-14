@@ -108,6 +108,26 @@ internal sealed class AzureTicketAttachmentStore : ITicketAttachmentStore
 		}
 	}
 
+	public Task<PagedResult<TicketAttachmentRecord>> GetForTicketPageAsync(
+		string ticketId,
+		bool includeDeleted = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(ticketId);
+
+		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketAttachmentEntity, TicketAttachmentRecord>(
+			_clients.TicketAttachments,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => !entity.IsDeleted || includeDeleted ? entity.ToRecord() : null,
+			cancellationToken);
+	}
+
 	public async Task<TicketAttachmentRecord?> GetAsync(
 		string ticketId,
 		string attachmentId,

@@ -60,6 +60,23 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 		}
 	}
 
+	public Task<PagedResult<TicketSummary>> GetAssignedPageAsync(
+		string assigneeOid,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(assigneeOid);
+
+		return QueryPartitionsPageAsync(
+			_clients.TicketsByAssignee,
+			Statuses(status).Select(currentStatus => StorageKeys.AssigneePartition(assigneeOid, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
+	}
+
 	public async IAsyncEnumerable<TicketSummary> GetUnassignedAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
@@ -89,6 +106,18 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 			}
 		}
 	}
+
+	public Task<PagedResult<TicketSummary>> GetUnassignedPageAsync(
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default) =>
+		QueryPartitionsPageAsync(
+			_clients.TicketsByAssignee,
+			Statuses(status).Select(currentStatus => StorageKeys.AssigneePartition(null, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
 
 	public async IAsyncEnumerable<TicketSummary> GetSubmittedAsync(
 		string submitterOid,
@@ -123,11 +152,35 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 		}
 	}
 
+	public Task<PagedResult<TicketSummary>> GetSubmittedPageAsync(
+		string submitterOid,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(submitterOid);
+
+		return QueryPartitionsPageAsync(
+			_clients.TicketsBySubmitter,
+			Statuses(status).Select(currentStatus => StorageKeys.SubmitterPartition(submitterOid, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
+	}
+
 	public IAsyncEnumerable<TicketSummary> GetByStatusAsync(
 		TicketStatus status,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default) =>
 		QueryPartitionAsync(_clients.TicketsByStatus, StorageKeys.StatusPartition(status), pageSize, cancellationToken);
+
+	public Task<PagedResult<TicketSummary>> GetByStatusPageAsync(
+		TicketStatus status,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default) =>
+		QueryPartitionPageAsync(_clients.TicketsByStatus, StorageKeys.StatusPartition(status), pageSize, pageToken, cancellationToken);
 
 	public async IAsyncEnumerable<TicketSummary> GetByTeamAsync(
 		string? teamId,
@@ -159,6 +212,19 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 			}
 		}
 	}
+
+	public Task<PagedResult<TicketSummary>> GetByTeamPageAsync(
+		string? teamId,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default) =>
+		QueryPartitionsPageAsync(
+			_clients.TicketsByTeam,
+			Statuses(status).Select(currentStatus => StorageKeys.TeamQueuePartition(teamId, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
 
 	public async IAsyncEnumerable<TicketSummary> GetByQueueAsync(
 		string? typeId,
@@ -193,6 +259,21 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 		}
 	}
 
+	public Task<PagedResult<TicketSummary>> GetByQueuePageAsync(
+		string? typeId,
+		string? categoryId,
+		string? subcategoryId,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default) =>
+		QueryPartitionsPageAsync(
+			_clients.TicketsByQueue,
+			Statuses(status).Select(currentStatus => StorageKeys.QueuePartition(typeId, categoryId, subcategoryId, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
+
 	public async IAsyncEnumerable<TicketSummary> GetByTagAsync(
 		string tag,
 		TicketStatus? status = null,
@@ -226,6 +307,23 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 		}
 	}
 
+	public Task<PagedResult<TicketSummary>> GetByTagPageAsync(
+		string tag,
+		TicketStatus? status = null,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+
+		return QueryPartitionsPageAsync(
+			_clients.TicketsByTag,
+			Statuses(status).Select(currentStatus => StorageKeys.TagPartition(tag, currentStatus)).ToArray(),
+			pageSize,
+			pageToken,
+			cancellationToken);
+	}
+
 	private static IEnumerable<TicketStatus> Statuses(TicketStatus? status) =>
 		status.HasValue ? [status.Value] : QueryableStatuses;
 
@@ -251,4 +349,35 @@ internal sealed class AzureTicketQueryStore : ITicketQueryStore
 			}
 		}
 	}
+
+	private static Task<PagedResult<TicketSummary>> QueryPartitionPageAsync(
+		TableClient table,
+		string partitionKey,
+		int? pageSize,
+		string? pageToken,
+		CancellationToken cancellationToken)
+	{
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketIndexEntity, TicketSummary>(
+			table,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.ToSummary(),
+			cancellationToken);
+	}
+
+	private static Task<PagedResult<TicketSummary>> QueryPartitionsPageAsync(
+		TableClient table,
+		IReadOnlyList<string> partitionKeys,
+		int? pageSize,
+		string? pageToken,
+		CancellationToken cancellationToken) =>
+		AzureTablePagedQueries.QuerySegmentedPageAsync<TicketIndexEntity, TicketSummary>(
+			table,
+			partitionKeys,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.ToSummary(),
+			cancellationToken);
 }

@@ -161,6 +161,23 @@ internal sealed class AzureTeamStore : ITeamStore
 		}
 	}
 
+	public Task<PagedResult<TeamRecord>> GetTeamsPageAsync(
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		var partitionKey = StorageKeys.TeamDefinitionPartition();
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TeamEntity, TeamRecord>(
+			_clients.Teams,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => includeInactive || entity.IsActive ? entity.ToRecord() : null,
+			cancellationToken);
+	}
+
 	public async IAsyncEnumerable<TeamMemberRecord> GetMembersAsync(
 		string teamId,
 		bool includeInactive = false,
@@ -188,6 +205,26 @@ internal sealed class AzureTeamStore : ITeamStore
 				}
 			}
 		}
+	}
+
+	public Task<PagedResult<TeamMemberRecord>> GetMembersPageAsync(
+		string teamId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
+
+		var partitionKey = StorageKeys.TeamMemberByTeamPartition(teamId);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TeamMemberEntity, TeamMemberRecord>(
+			_clients.TeamMembers,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => includeInactive || entity.IsActive ? entity.ToRecord() : null,
+			cancellationToken);
 	}
 
 	public async IAsyncEnumerable<TeamMemberRecord> GetMembershipsForUserAsync(
@@ -219,6 +256,26 @@ internal sealed class AzureTeamStore : ITeamStore
 		}
 	}
 
+	public Task<PagedResult<TeamMemberRecord>> GetMembershipsForUserPageAsync(
+		string userOid,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(userOid);
+
+		var partitionKey = StorageKeys.TeamMemberByUserPartition(userOid);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TeamMemberEntity, TeamMemberRecord>(
+			_clients.TeamMembers,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => includeInactive || entity.IsActive ? entity.ToRecord() : null,
+			cancellationToken);
+	}
+
 	public async IAsyncEnumerable<TeamCategoryAssignmentRecord> GetCategoryAssignmentsAsync(
 		string? teamId = null,
 		bool includeInactive = false,
@@ -245,6 +302,26 @@ internal sealed class AzureTeamStore : ITeamStore
 				}
 			}
 		}
+	}
+
+	public Task<PagedResult<TeamCategoryAssignmentRecord>> GetCategoryAssignmentsPageAsync(
+		string? teamId = null,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		var filter = NormalizeOptional(teamId) is { } normalizedTeamId
+			? TableClient.CreateQueryFilter($"TeamId eq {normalizedTeamId}")
+			: null;
+
+		return AzureTablePagedQueries.QueryPageAsync<TeamCategoryAssignmentEntity, TeamCategoryAssignmentRecord>(
+			_clients.TeamRouting,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => includeInactive || entity.IsActive ? entity.ToRecord() : null,
+			cancellationToken);
 	}
 
 	public async Task<TeamRouteResolution?> ResolveTeamAsync(

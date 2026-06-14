@@ -103,6 +103,22 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 		}
 	}
 
+	public Task<PagedResult<TicketTypeRecord>> GetTypesPageAsync(
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.TypePartition()}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketTaxonomyEntity, TicketTypeRecord>(
+			_clients.TicketTaxonomy,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.TaxonomyKind == TypeKind && (includeInactive || entity.IsActive) ? entity.ToTypeRecord() : null,
+			cancellationToken);
+	}
+
 	public async IAsyncEnumerable<TicketCategoryRecord> GetCategoriesAsync(
 		string typeId,
 		bool includeInactive = false,
@@ -126,6 +142,25 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 		}
 	}
 
+	public Task<PagedResult<TicketCategoryRecord>> GetCategoriesPageAsync(
+		string typeId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(typeId);
+
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.CategoryPartition(typeId)}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketTaxonomyEntity, TicketCategoryRecord>(
+			_clients.TicketTaxonomy,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.TaxonomyKind == CategoryKind && (includeInactive || entity.IsActive) ? entity.ToCategoryRecord() : null,
+			cancellationToken);
+	}
+
 	public async IAsyncEnumerable<TicketSubcategoryRecord> GetSubcategoriesAsync(
 		string categoryId,
 		bool includeInactive = false,
@@ -147,6 +182,25 @@ internal sealed class AzureTicketTaxonomyStore : ITicketTaxonomyStore
 				}
 			}
 		}
+	}
+
+	public Task<PagedResult<TicketSubcategoryRecord>> GetSubcategoriesPageAsync(
+		string categoryId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(categoryId);
+
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {StorageKeys.SubcategoryPartition(categoryId)}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketTaxonomyEntity, TicketSubcategoryRecord>(
+			_clients.TicketTaxonomy,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => entity.TaxonomyKind == SubcategoryKind && (includeInactive || entity.IsActive) ? entity.ToSubcategoryRecord() : null,
+			cancellationToken);
 	}
 
 	private async Task<TicketTaxonomyEntity> GetOrCreateAsync(

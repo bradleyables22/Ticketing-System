@@ -67,7 +67,7 @@ Meaning:
 
 ```text
 Ticket.Read
-  Read current user context, tickets, ticket notes, attachments, teams, taxonomy, users, and dashboard summaries.
+  Read current user context, tickets, ticket notes, attachments, teams, taxonomy, and users.
 
 Ticket.Write
   Create and update tickets, add notes, upload/delete attachments, assign technicians, and change ticket status.

@@ -19,10 +19,23 @@ public interface ITeamStore
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<PagedResult<TeamRecord>> GetTeamsPageAsync(
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
+
 	IAsyncEnumerable<TeamMemberRecord> GetMembersAsync(
 		string teamId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		CancellationToken cancellationToken = default);
+
+	Task<PagedResult<TeamMemberRecord>> GetMembersPageAsync(
+		string teamId,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
 	IAsyncEnumerable<TeamMemberRecord> GetMembershipsForUserAsync(
@@ -31,10 +44,24 @@ public interface ITeamStore
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
 
+	Task<PagedResult<TeamMemberRecord>> GetMembershipsForUserPageAsync(
+		string userOid,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
+
 	IAsyncEnumerable<TeamCategoryAssignmentRecord> GetCategoryAssignmentsAsync(
 		string? teamId = null,
 		bool includeInactive = false,
 		int? pageSize = null,
+		CancellationToken cancellationToken = default);
+
+	Task<PagedResult<TeamCategoryAssignmentRecord>> GetCategoryAssignmentsPageAsync(
+		string? teamId = null,
+		bool includeInactive = false,
+		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
 	Task<TeamRouteResolution?> ResolveTeamAsync(

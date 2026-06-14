@@ -20,10 +20,11 @@ internal static class TaxonomyEndpoints
 		taxonomy.MapGet("/types", async (
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITaxonomyManagementService taxonomyManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await taxonomyManagement.GetTypesAsync(includeInactive, pageSize, cancellationToken);
+				var result = await taxonomyManagement.GetTypesAsync(includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketTypes");
@@ -75,10 +76,11 @@ internal static class TaxonomyEndpoints
 				string typeId,
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITaxonomyManagementService taxonomyManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await taxonomyManagement.GetCategoriesAsync(typeId, includeInactive, pageSize, cancellationToken);
+				var result = await taxonomyManagement.GetCategoriesAsync(typeId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketCategories");
@@ -136,10 +138,11 @@ internal static class TaxonomyEndpoints
 				string categoryId,
 				bool includeInactive,
 				int? pageSize,
+				string? pageToken,
 				ITaxonomyManagementService taxonomyManagement,
 				CancellationToken cancellationToken) =>
 			{
-				var result = await taxonomyManagement.GetSubcategoriesAsync(categoryId, includeInactive, pageSize, cancellationToken);
+				var result = await taxonomyManagement.GetSubcategoriesAsync(categoryId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.WithName("GetTicketSubcategories");

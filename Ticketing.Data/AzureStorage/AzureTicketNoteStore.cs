@@ -88,4 +88,24 @@ internal sealed class AzureTicketNoteStore : ITicketNoteStore
 			}
 		}
 	}
+
+	public Task<PagedResult<TicketNoteRecord>> GetForTicketPageAsync(
+		string ticketId,
+		bool includeInternal,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(ticketId);
+
+		var partitionKey = StorageKeys.TicketScopedPartition(ticketId);
+		var filter = TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
+		return AzureTablePagedQueries.QueryPageAsync<TicketNoteEntity, TicketNoteRecord>(
+			_clients.TicketNotes,
+			filter,
+			AzureTablePageLimits.NormalizeResultSize(pageSize),
+			pageToken,
+			entity => !entity.IsInternal || includeInternal ? entity.ToRecord() : null,
+			cancellationToken);
+	}
 }

@@ -11,20 +11,23 @@ public interface ITaxonomyManagementService
 
 	Task<DomainResult<TicketSubcategoryRecord>> SaveSubcategoryAsync(SaveTicketSubcategoryCommand command, CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketTypeRecord>>> GetTypesAsync(
+	Task<DomainResult<PagedResult<TicketTypeRecord>>> GetTypesAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketCategoryRecord>>> GetCategoriesAsync(
+	Task<DomainResult<PagedResult<TicketCategoryRecord>>> GetCategoriesAsync(
 		string typeId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSubcategoryRecord>>> GetSubcategoriesAsync(
+	Task<DomainResult<PagedResult<TicketSubcategoryRecord>>> GetSubcategoriesAsync(
 		string categoryId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 }

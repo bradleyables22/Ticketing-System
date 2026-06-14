@@ -94,56 +94,56 @@ internal sealed class TeamManagementService : ITeamManagementService
 				?? throw new TicketingNotFoundException("Team", teamId);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TeamRecord>>> GetTeamsAsync(
+	public Task<DomainResult<PagedResult<TeamRecord>>> GetTeamsAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TeamRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TeamRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureTechnicianOrAbove("Only technicians, managers, and admins can view teams.");
-			return await _teamStore.GetTeamsAsync(CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _teamStore.GetTeamsPageAsync(CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMyMembershipsAsync(
+	public Task<DomainResult<PagedResult<TeamMemberRecord>>> GetMyMembershipsAsync(
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TeamMemberRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TeamMemberRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			var userOid = _currentUser.RequireUserOid();
-			return await _teamStore.GetMembershipsForUserAsync(userOid, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _teamStore.GetMembershipsForUserPageAsync(userOid, CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TeamMemberRecord>>> GetMembersAsync(
+	public Task<DomainResult<PagedResult<TeamMemberRecord>>> GetMembersAsync(
 		string teamId,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TeamMemberRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TeamMemberRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
 			await EnsureCanViewTeamMembersAsync(teamId, cancellationToken);
 
-			return await _teamStore.GetMembersAsync(teamId, CanIncludeInactive(includeInactive), normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _teamStore.GetMembersPageAsync(teamId, CanIncludeInactive(includeInactive), normalizedPageSize, pageToken, cancellationToken);
 		});
 
-	public Task<DomainResult<IReadOnlyList<TeamCategoryAssignmentRecord>>> GetCategoryAssignmentsAsync(
+	public Task<DomainResult<PagedResult<TeamCategoryAssignmentRecord>>> GetCategoryAssignmentsAsync(
 		string? teamId = null,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default) =>
-		DomainResult<IReadOnlyList<TeamCategoryAssignmentRecord>>.TryAsync(async () =>
+		DomainResult<PagedResult<TeamCategoryAssignmentRecord>>.TryAsync(async () =>
 		{
 			var normalizedPageSize = DomainPaging.NormalizePageSize(pageSize);
 			EnsureCanManageTeams();
-			return await _teamStore.GetCategoryAssignmentsAsync(teamId, includeInactive, normalizedPageSize, cancellationToken)
-				.ToReadOnlyListAsync(normalizedPageSize, cancellationToken);
+			return await _teamStore.GetCategoryAssignmentsPageAsync(teamId, includeInactive, normalizedPageSize, pageToken, cancellationToken);
 		});
 
 	private void EnsureCanManageTeams()

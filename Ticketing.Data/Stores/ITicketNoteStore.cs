@@ -11,4 +11,11 @@ public interface ITicketNoteStore
 		bool includeInternal,
 		int? pageSize = null,
 		CancellationToken cancellationToken = default);
+
+	Task<PagedResult<TicketNoteRecord>> GetForTicketPageAsync(
+		string ticketId,
+		bool includeInternal,
+		int? pageSize = null,
+		string? pageToken = null,
+		CancellationToken cancellationToken = default);
 }

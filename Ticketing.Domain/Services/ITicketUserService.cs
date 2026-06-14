@@ -9,9 +9,10 @@ public interface ITicketUserService
 
 	Task<DomainResult<TicketUserProfile>> GetUserAsync(string userOid, CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketUserProfile>>> SearchUsersAsync(
+	Task<DomainResult<PagedResult<TicketUserProfile>>> SearchUsersAsync(
 		string? query,
 		bool includeInactive = false,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 }

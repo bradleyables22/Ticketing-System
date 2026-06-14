@@ -11,47 +11,54 @@ public interface ITicketWorkflowService
 
 	Task<DomainResult<TicketRecord>> GetByNumberAsync(string ticketNumber, CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetMyTicketsAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetMyTicketsAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetAssignedToMeAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetAssignedToMeAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetUnassignedAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetUnassignedAsync(
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByStatusAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetByStatusAsync(
 		TicketStatus status,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetTeamQueueAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetTeamQueueAsync(
 		string teamId,
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetCategoryQueueAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetCategoryQueueAsync(
 		string? typeId,
 		string? categoryId,
 		string? subcategoryId,
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> GetByTagAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> GetByTagAsync(
 		string tag,
 		TicketStatus? status = null,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketSummary>>> SearchAsync(
+	Task<DomainResult<PagedResult<TicketSummary>>> SearchAsync(
 		TicketSearchCriteria criteria,
 		CancellationToken cancellationToken = default);
 
@@ -59,18 +66,20 @@ public interface ITicketWorkflowService
 
 	Task<DomainResult<TicketNoteRecord>> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketNoteRecord>>> GetNotesAsync(
+	Task<DomainResult<PagedResult<TicketNoteRecord>>> GetNotesAsync(
 		string ticketId,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketAttachmentRecord>> UploadAttachmentAsync(
 		UploadTicketAttachmentCommand command,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketAttachmentRecord>>> GetAttachmentsAsync(
+	Task<DomainResult<PagedResult<TicketAttachmentRecord>>> GetAttachmentsAsync(
 		string ticketId,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketAttachmentRecord>> GetAttachmentAsync(
@@ -88,9 +97,10 @@ public interface ITicketWorkflowService
 		string attachmentId,
 		CancellationToken cancellationToken = default);
 
-	Task<DomainResult<IReadOnlyList<TicketAuditEventRecord>>> GetAuditAsync(
+	Task<DomainResult<PagedResult<TicketAuditEventRecord>>> GetAuditAsync(
 		string ticketId,
 		int? pageSize = null,
+		string? pageToken = null,
 		CancellationToken cancellationToken = default);
 
 	Task<DomainResult<TicketRecord>> AssignAsync(AssignTicketCommand command, CancellationToken cancellationToken = default);
