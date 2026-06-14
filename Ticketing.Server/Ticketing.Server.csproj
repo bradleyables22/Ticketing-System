@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Ticketing.Data\Ticketing.Data.csproj" />
     <ProjectReference Include="..\Ticketing.Auth\Ticketing.Auth.csproj" />
     <ProjectReference Include="..\Ticketing.Domain\Ticketing.Domain.csproj" />
+    <ProjectReference Include="..\Ticketing.Mcp\Ticketing.Mcp.csproj" />
     <ProjectReference Include="..\Ticketing.Rest\Ticketing.Rest.csproj" />
   </ItemGroup>
 

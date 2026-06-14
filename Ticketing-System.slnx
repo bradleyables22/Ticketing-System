@@ -2,6 +2,7 @@
   <Project Path="Ticketing.Auth/Ticketing.Auth.csproj" />
   <Project Path="Ticketing.Data/Ticketing.Data.csproj" />
   <Project Path="Ticketing.Domain/Ticketing.Domain.csproj" Id="54b2b0a9-4e9c-4abe-8a36-11446329112e" />
+  <Project Path="Ticketing.Mcp/Ticketing.Mcp.csproj" Id="c05d9169-7391-43c7-9e1c-36028ce46a36" />
   <Project Path="Ticketing.Rest/Ticketing.Rest.csproj" Id="a16198c8-07e2-4691-92db-5106d40c70fc" />
   <Project Path="Ticketing.Server/Ticketing.Server.csproj" />
 </Solution>

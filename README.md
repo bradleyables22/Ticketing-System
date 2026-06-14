@@ -8,7 +8,7 @@ The system is being designed around Microsoft-native infrastructure:
 - Azure Storage Account services for persistence and background work
 - ASP.NET Core for the server host
 - Minimal APIs for REST endpoints
-- Future interaction surfaces such as MCP and UI clients
+- MCP tools for AI clients
 
 ## Current Architecture
 
@@ -29,6 +29,9 @@ Ticketing.Domain
 
 Ticketing.Rest
   Minimal API endpoint layer over the domain services.
+
+Ticketing.Mcp
+  Model Context Protocol tool layer over the domain services.
 ```
 
 The intended dependency direction is:
@@ -160,7 +163,7 @@ ConnectionStrings__AzureStorage
 
 The Development environment defaults to `UseDevelopmentStorage=true` for Azurite.
 
-Auth configuration is documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md).
+Auth configuration is documented in [Ticketing.Auth/README.md](Ticketing.Auth/README.md). MCP setup and tool behavior are documented in [Ticketing.Mcp/README.md](Ticketing.Mcp/README.md).
 
 Current server composition:
 
@@ -170,6 +173,7 @@ builder.Services.AddTicketingData(azureStorageConnectionString);
 builder.Services.AddTicketingGraphUserDirectory(...);
 builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
+builder.Services.AddTicketingMcp();
 builder.Services.AddOpenApi();
 ```
 
@@ -180,6 +184,7 @@ REST endpoints are mapped from `Ticketing.Rest`:
 ```csharp
 app.MapOpenApi();
 app.MapScalarApiReference("/api/docs");
+app.MapTicketingMcp();
 app.MapTicketingOAuthDiscovery();
 app.MapTicketingRestApi();
 app.MapHealthChecks("/health");
@@ -308,6 +313,12 @@ List-style REST endpoints accept `pageSize` and `pageToken`. Missing page sizes 
 ```
 
 Pass `nextPageToken` back as `pageToken` to read the next page.
+
+## MCP API
+
+`Ticketing.Mcp` exposes the same domain workflows as authenticated MCP tools at `/mcp` by default. It uses the official ASP.NET Core MCP transport package, the same auth stack as REST, and structured `DomainResult`-style envelopes for tool responses.
+
+MCP setup, configuration, auth policy mapping, tool inventory, local smoke checks, and attachment limitations are documented in [Ticketing.Mcp/README.md](Ticketing.Mcp/README.md).
 
 ## Attachment Uploads
 
@@ -530,12 +541,12 @@ Implemented:
 - continuation-token response envelopes for REST list endpoints
 - image-only attachment upload policy with configurable max size and signature validation
 - email notification queue publishing for ticket workflow events
+- authenticated MCP endpoint and ticketing tool surface
 - admin system info and health endpoint
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 
 Not yet implemented:
 
-- MCP surface
 - UI
 - projection repair worker
 - email sending worker
@@ -550,4 +561,4 @@ Not yet implemented:
 1. Add initial integration tests against a development Azure Storage Account or Azurite where compatible.
 2. Add background queue consumers for projection repair and notifications.
 3. Add production observability around storage latency, authorization failures, and endpoint error rates.
-4. Start the first UI or MCP surface on top of the domain layer.
+4. Start the first UI or add MCP resources/prompts if clients need richer guided workflows.

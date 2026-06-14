@@ -5,6 +5,9 @@ using Ticketing.Data.Configuration;
 using Ticketing.Data.DependencyInjection;
 using Ticketing.Domain.Configuration;
 using Ticketing.Domain.DependencyInjection;
+using Ticketing.Mcp.Configuration;
+using Ticketing.Mcp.DependencyInjection;
+using Ticketing.Mcp.Endpoints;
 using Ticketing.Rest.DependencyInjection;
 using Ticketing.Rest.Endpoints;
 using Ticketing.Server.LocalDevelopment;
@@ -77,6 +80,7 @@ builder.Services.AddTicketingData(
 builder.Services.AddTicketingGraphUserDirectory(options => ConfigureGraphUserDirectory(options, builder.Configuration));
 builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
+builder.Services.AddTicketingMcp(options => ConfigureMcpOptions(options, builder.Configuration));
 builder.Services.AddOpenApi(options =>
 {
 	options.AddDocumentTransformer((document, _, _) =>
@@ -142,6 +146,7 @@ app.MapScalarApiReference("/api/docs", options =>
 	options.PersistentAuthentication = true;
 });
 
+app.MapTicketingMcp();
 app.MapTicketingOAuthDiscovery();
 app.MapTicketingRestApi();
 app.MapHealthChecks("/health", new HealthCheckOptions()).AllowAnonymous();
@@ -630,6 +635,27 @@ static TicketEmailNotificationOptions ConfigureEmailNotificationOptions(IConfigu
 
 	ConfigureEmailNotificationEvents(options.Events, configuration);
 	return options;
+}
+
+static void ConfigureMcpOptions(
+	TicketingMcpOptions options,
+	IConfiguration configuration)
+{
+	options.EndpointPath = GetConfiguredValue(
+		configuration,
+		"TICKETING_MCP_ENDPOINT_PATH",
+		"Ticketing:Mcp:EndpointPath")
+		?? options.EndpointPath;
+	options.RequireAuthorization = GetConfiguredBool(
+		configuration,
+		options.RequireAuthorization,
+		"TICKETING_MCP_REQUIRE_AUTHORIZATION",
+		"Ticketing:Mcp:RequireAuthorization");
+	options.AuthorizationPolicy = GetConfiguredValue(
+		configuration,
+		"TICKETING_MCP_AUTHORIZATION_POLICY",
+		"Ticketing:Mcp:AuthorizationPolicy")
+		?? options.AuthorizationPolicy;
 }
 
 static void ConfigureEmailNotificationEvents(
