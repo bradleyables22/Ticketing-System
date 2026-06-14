@@ -52,6 +52,7 @@ public static class TicketingDataServiceCollectionExtensions
 		services.AddSingleton<IUserProfileStore, AzureUserProfileStore>();
 		services.AddSingleton<ITicketAuditStore, AzureTicketAuditStore>();
 		services.AddSingleton<ITicketWorkQueue, AzureTicketWorkQueue>();
+		services.AddSingleton<ITicketEmailNotificationQueue, AzureTicketEmailNotificationQueue>();
 
 		return services;
 	}

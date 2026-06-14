@@ -345,6 +345,121 @@ Ticketing__Attachments__ValidateImageSignatures
 
 `MaxSizeBytes` wins over `MaxSizeMegabytes` when both are configured. The server also applies the same limit to multipart body handling with a small allowance for multipart overhead.
 
+## Email Notification Queue
+
+The API does not send email directly. Ticket workflows enqueue email notification work to Azure Queue Storage and leave actual sending to a host-provided worker, Azure Function, Logic App, or other consumer.
+
+Default queue name:
+
+```text
+ticket-email-notifications
+```
+
+The queue is created by the storage initializer alongside the existing tables, blob container, and work queue.
+
+Default behavior publishes notification messages for:
+
+- ticket created
+- ticket updated
+- ticket assigned
+- ticket team assigned
+- ticket status changed, resolved, or cancelled
+- ticket closed
+- ticket reopened
+- public note added
+- internal note added
+- attachment added
+- attachment deleted
+
+Notification enqueueing is best-effort. If a ticket mutation succeeds but queue publishing fails, the ticket change is kept and the API logs a warning instead of rolling the workflow back.
+
+Queue messages are JSON with camel-case property names:
+
+```json
+{
+  "schemaVersion": 1,
+  "notificationId": "019...",
+  "workType": "ticket-email-notification",
+  "eventName": "ticket.created",
+  "templateKey": "ticket.created",
+  "createdUtc": "2026-06-14T18:00:00+00:00",
+  "ticket": {
+    "ticketId": "019...",
+    "ticketNumber": "TCK-000001",
+    "title": "Printer is jammed",
+    "description": null,
+    "status": "Open",
+    "priority": "Normal",
+    "submitterOid": "user-1",
+    "assigneeOid": null,
+    "assignedTeamId": "helpdesk"
+  },
+  "actor": {
+    "userOid": "user-1",
+    "displayName": "Alex User",
+    "email": "alex@example.com"
+  },
+  "recipients": [
+    {
+      "userOid": "user-2",
+      "displayName": "Taylor Tech",
+      "email": "taylor@example.com",
+      "roles": ["teamMember"]
+    }
+  ],
+  "data": {}
+}
+```
+
+The sender should treat `eventName` or `templateKey` as the template selector. Recipient emails are included when they exist in the local `UserProfiles` cache; consumers can also resolve recipients by `userOid`.
+
+Environment configuration:
+
+```text
+TICKETING_EMAIL_NOTIFICATIONS_ENABLED=true
+TICKETING_EMAIL_NOTIFICATIONS_QUEUE_NAME=ticket-email-notifications
+TICKETING_EMAIL_NOTIFICATIONS_EXCLUDE_ACTOR=true
+TICKETING_EMAIL_NOTIFICATIONS_MAX_TEAM_RECIPIENTS=50
+TICKETING_EMAIL_NOTIFICATIONS_INCLUDE_TICKET_DESCRIPTION=false
+```
+
+Per-event switches:
+
+```text
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_CREATED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_UPDATED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_ASSIGNED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TEAM_ASSIGNED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_STATUS_CHANGED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_CLOSED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_REOPENED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_PUBLIC_NOTE_ADDED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_INTERNAL_NOTE_ADDED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_ATTACHMENT_ADDED=true
+TICKETING_EMAIL_NOTIFICATIONS_EVENT_ATTACHMENT_DELETED=true
+```
+
+Supported configuration keys:
+
+```text
+Ticketing__EmailNotifications__Enabled
+Ticketing__EmailNotifications__QueueName
+Ticketing__EmailNotifications__ExcludeActorFromRecipients
+Ticketing__EmailNotifications__MaxTeamRecipients
+Ticketing__EmailNotifications__IncludeTicketDescription
+Ticketing__EmailNotifications__Events__TicketCreated
+Ticketing__EmailNotifications__Events__TicketUpdated
+Ticketing__EmailNotifications__Events__TicketAssigned
+Ticketing__EmailNotifications__Events__TeamAssigned
+Ticketing__EmailNotifications__Events__StatusChanged
+Ticketing__EmailNotifications__Events__TicketClosed
+Ticketing__EmailNotifications__Events__TicketReopened
+Ticketing__EmailNotifications__Events__PublicNoteAdded
+Ticketing__EmailNotifications__Events__InternalNoteAdded
+Ticketing__EmailNotifications__Events__AttachmentAdded
+Ticketing__EmailNotifications__Events__AttachmentDeleted
+```
+
 ## Microsoft Graph User Search
 
 When configured, `/api/users` searches Microsoft Graph users with application permissions, then refreshes the local profile cache with returned users.
@@ -409,6 +524,7 @@ Implemented:
 - ticket status transition endpoints
 - continuation-token response envelopes for REST list endpoints
 - image-only attachment upload policy with configurable max size and signature validation
+- email notification queue publishing for ticket workflow events
 - admin system info and health endpoint
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 
@@ -417,7 +533,7 @@ Not yet implemented:
 - MCP surface
 - UI
 - projection repair worker
-- notification worker
+- email sending worker
 - SLA and escalation rules
 - full search/reporting strategy
 - automated tests

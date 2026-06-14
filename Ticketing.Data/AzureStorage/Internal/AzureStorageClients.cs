@@ -64,6 +64,8 @@ internal sealed class AzureStorageClients
 
 	public QueueClient WorkQueue => QueueServiceClient.GetQueueClient(_options.WorkQueueName);
 
+	public QueueClient EmailNotificationQueue => QueueServiceClient.GetQueueClient(_options.EmailNotificationQueueName);
+
 	public IEnumerable<TableClient> AllTables()
 	{
 		yield return Tickets;

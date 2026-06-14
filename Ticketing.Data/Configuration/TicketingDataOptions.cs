@@ -10,6 +10,8 @@ public sealed class TicketingDataOptions
 
 	public string WorkQueueName { get; set; } = "ticket-work";
 
+	public string EmailNotificationQueueName { get; set; } = "ticket-email-notifications";
+
 	public bool InitializeStorageOnStartup { get; set; } = true;
 }
 

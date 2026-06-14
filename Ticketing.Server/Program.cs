@@ -68,7 +68,12 @@ var attachmentUploadOptions = ConfigureAttachmentUploadOptions(builder.Configura
 builder.Services.AddSingleton(attachmentUploadOptions);
 ConfigureServerUploadLimits(builder, attachmentUploadOptions);
 
-builder.Services.AddTicketingData(azureStorageConnectionString);
+var emailNotificationOptions = ConfigureEmailNotificationOptions(builder.Configuration);
+builder.Services.AddSingleton(emailNotificationOptions);
+
+builder.Services.AddTicketingData(
+	azureStorageConnectionString,
+	options => ConfigureDataOptions(options, builder.Configuration));
 builder.Services.AddTicketingGraphUserDirectory(options => ConfigureGraphUserDirectory(options, builder.Configuration));
 builder.Services.AddTicketingDomain();
 builder.Services.AddTicketingRest();
@@ -436,6 +441,37 @@ static void ConfigureGraphUserDirectory(
 		?? options.GraphBaseUri;
 }
 
+static void ConfigureDataOptions(
+	TicketingDataOptions options,
+	IConfiguration configuration)
+{
+	options.AttachmentsContainerName = GetConfiguredValue(
+		configuration,
+		"TICKETING_ATTACHMENTS_CONTAINER_NAME",
+		"Ticketing:Data:AttachmentsContainerName")
+		?? options.AttachmentsContainerName;
+
+	options.WorkQueueName = GetConfiguredValue(
+		configuration,
+		"TICKETING_WORK_QUEUE_NAME",
+		"Ticketing:Data:WorkQueueName")
+		?? options.WorkQueueName;
+
+	options.EmailNotificationQueueName = GetConfiguredValue(
+		configuration,
+		"TICKETING_EMAIL_NOTIFICATIONS_QUEUE_NAME",
+		"Ticketing:EmailNotifications:QueueName",
+		"TICKETING_DATA_EMAIL_NOTIFICATION_QUEUE_NAME",
+		"Ticketing:Data:EmailNotificationQueueName")
+		?? options.EmailNotificationQueueName;
+
+	options.InitializeStorageOnStartup = GetConfiguredBool(
+		configuration,
+		options.InitializeStorageOnStartup,
+		"TICKETING_INITIALIZE_STORAGE_ON_STARTUP",
+		"Ticketing:Data:InitializeStorageOnStartup");
+}
+
 static TicketAttachmentUploadOptions ConfigureAttachmentUploadOptions(IConfiguration configuration)
 {
 	var options = new TicketAttachmentUploadOptions();
@@ -482,6 +518,100 @@ static TicketAttachmentUploadOptions ConfigureAttachmentUploadOptions(IConfigura
 		"Ticketing:Attachments:ValidateImageSignatures");
 
 	return options;
+}
+
+static TicketEmailNotificationOptions ConfigureEmailNotificationOptions(IConfiguration configuration)
+{
+	var options = new TicketEmailNotificationOptions();
+
+	options.Enabled = GetConfiguredBool(
+		configuration,
+		options.Enabled,
+		"TICKETING_EMAIL_NOTIFICATIONS_ENABLED",
+		"Ticketing:EmailNotifications:Enabled");
+	options.ExcludeActorFromRecipients = GetConfiguredBool(
+		configuration,
+		options.ExcludeActorFromRecipients,
+		"TICKETING_EMAIL_NOTIFICATIONS_EXCLUDE_ACTOR",
+		"Ticketing:EmailNotifications:ExcludeActorFromRecipients");
+	options.IncludeTicketDescription = GetConfiguredBool(
+		configuration,
+		options.IncludeTicketDescription,
+		"TICKETING_EMAIL_NOTIFICATIONS_INCLUDE_TICKET_DESCRIPTION",
+		"Ticketing:EmailNotifications:IncludeTicketDescription");
+
+	var maxTeamRecipients = GetConfiguredLong(
+		configuration,
+		"TICKETING_EMAIL_NOTIFICATIONS_MAX_TEAM_RECIPIENTS",
+		"Ticketing:EmailNotifications:MaxTeamRecipients");
+	if (maxTeamRecipients.HasValue)
+	{
+		options.MaxTeamRecipients = (int)Math.Clamp(maxTeamRecipients.Value, 0, 500);
+	}
+
+	ConfigureEmailNotificationEvents(options.Events, configuration);
+	return options;
+}
+
+static void ConfigureEmailNotificationEvents(
+	TicketEmailNotificationEventOptions options,
+	IConfiguration configuration)
+{
+	options.TicketCreated = GetConfiguredBool(
+		configuration,
+		options.TicketCreated,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_CREATED",
+		"Ticketing:EmailNotifications:Events:TicketCreated");
+	options.TicketUpdated = GetConfiguredBool(
+		configuration,
+		options.TicketUpdated,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_UPDATED",
+		"Ticketing:EmailNotifications:Events:TicketUpdated");
+	options.TicketAssigned = GetConfiguredBool(
+		configuration,
+		options.TicketAssigned,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_ASSIGNED",
+		"Ticketing:EmailNotifications:Events:TicketAssigned");
+	options.TeamAssigned = GetConfiguredBool(
+		configuration,
+		options.TeamAssigned,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TEAM_ASSIGNED",
+		"Ticketing:EmailNotifications:Events:TeamAssigned");
+	options.StatusChanged = GetConfiguredBool(
+		configuration,
+		options.StatusChanged,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_STATUS_CHANGED",
+		"Ticketing:EmailNotifications:Events:StatusChanged");
+	options.TicketClosed = GetConfiguredBool(
+		configuration,
+		options.TicketClosed,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_CLOSED",
+		"Ticketing:EmailNotifications:Events:TicketClosed");
+	options.TicketReopened = GetConfiguredBool(
+		configuration,
+		options.TicketReopened,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_TICKET_REOPENED",
+		"Ticketing:EmailNotifications:Events:TicketReopened");
+	options.PublicNoteAdded = GetConfiguredBool(
+		configuration,
+		options.PublicNoteAdded,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_PUBLIC_NOTE_ADDED",
+		"Ticketing:EmailNotifications:Events:PublicNoteAdded");
+	options.InternalNoteAdded = GetConfiguredBool(
+		configuration,
+		options.InternalNoteAdded,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_INTERNAL_NOTE_ADDED",
+		"Ticketing:EmailNotifications:Events:InternalNoteAdded");
+	options.AttachmentAdded = GetConfiguredBool(
+		configuration,
+		options.AttachmentAdded,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_ATTACHMENT_ADDED",
+		"Ticketing:EmailNotifications:Events:AttachmentAdded");
+	options.AttachmentDeleted = GetConfiguredBool(
+		configuration,
+		options.AttachmentDeleted,
+		"TICKETING_EMAIL_NOTIFICATIONS_EVENT_ATTACHMENT_DELETED",
+		"Ticketing:EmailNotifications:Events:AttachmentDeleted");
 }
 
 static void ConfigureServerUploadLimits(

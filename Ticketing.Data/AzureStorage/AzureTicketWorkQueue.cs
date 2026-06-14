@@ -21,14 +21,6 @@ internal sealed class AzureTicketWorkQueue : ITicketWorkQueue
 		return EnqueueAsync("projection-repair", ticketId, reason, cancellationToken);
 	}
 
-	public Task EnqueueNotificationAsync(string ticketId, string eventName, CancellationToken cancellationToken = default)
-	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(ticketId);
-		ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
-
-		return EnqueueAsync("notification", ticketId, eventName, cancellationToken);
-	}
-
 	private Task EnqueueAsync(string workType, string ticketId, string reason, CancellationToken cancellationToken)
 	{
 		var message = new TicketWorkQueueMessage(

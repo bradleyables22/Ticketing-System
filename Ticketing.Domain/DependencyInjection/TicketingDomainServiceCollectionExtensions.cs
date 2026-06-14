@@ -10,6 +10,7 @@ public static class TicketingDomainServiceCollectionExtensions
 	public static IServiceCollection AddTicketingDomain(this IServiceCollection services)
 	{
 		services.TryAddSingleton(new TicketAttachmentUploadOptions());
+		services.TryAddSingleton(new TicketEmailNotificationOptions());
 		return AddTicketingDomainServices(services);
 	}
 
@@ -22,6 +23,7 @@ public static class TicketingDomainServiceCollectionExtensions
 		var options = new TicketAttachmentUploadOptions();
 		configureAttachmentUploads(options);
 		services.AddSingleton(options);
+		services.TryAddSingleton(new TicketEmailNotificationOptions());
 
 		return AddTicketingDomainServices(services);
 	}
@@ -31,6 +33,7 @@ public static class TicketingDomainServiceCollectionExtensions
 		services.AddScoped<CurrentUserService>();
 		services.AddScoped<ITicketPermissionService, TicketPermissionService>();
 		services.AddScoped<TicketAttachmentUploadValidator>();
+		services.AddScoped<TicketEmailNotificationService>();
 		services.AddScoped<ITicketWorkflowService, TicketWorkflowService>();
 		services.AddScoped<ITeamManagementService, TeamManagementService>();
 		services.AddScoped<ITaxonomyManagementService, TaxonomyManagementService>();

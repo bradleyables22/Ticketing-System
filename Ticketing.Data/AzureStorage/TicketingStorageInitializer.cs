@@ -22,5 +22,6 @@ internal sealed class TicketingStorageInitializer : ITicketingStorageInitializer
 
 		await _clients.AttachmentsContainer.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 		await _clients.WorkQueue.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+		await _clients.EmailNotificationQueue.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 	}
 }

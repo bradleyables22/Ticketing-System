@@ -28,6 +28,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 	private readonly ITicketPermissionService _permissions;
 	private readonly ITeamStore _teamStore;
 	private readonly TicketAttachmentUploadValidator _attachmentUploadValidator;
+	private readonly TicketEmailNotificationService _emailNotifications;
 
 	public TicketWorkflowService(
 		CurrentUserService currentUser,
@@ -38,7 +39,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		ITicketAuditStore ticketAuditStore,
 		ITicketPermissionService permissions,
 		ITeamStore teamStore,
-		TicketAttachmentUploadValidator attachmentUploadValidator)
+		TicketAttachmentUploadValidator attachmentUploadValidator,
+		TicketEmailNotificationService emailNotifications)
 	{
 		_currentUser = currentUser;
 		_ticketStore = ticketStore;
@@ -49,6 +51,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		_permissions = permissions;
 		_teamStore = teamStore;
 		_attachmentUploadValidator = attachmentUploadValidator;
+		_emailNotifications = emailNotifications;
 	}
 
 	public Task<DomainResult<TicketRecord>> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default) =>
@@ -59,7 +62,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
 
-			return await _ticketStore.CreateAsync(
+			var ticket = await _ticketStore.CreateAsync(
 				new CreateTicketRequest
 				{
 					Title = command.Title,
@@ -72,6 +75,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					Tags = command.Tags
 				},
 				cancellationToken);
+
+			await _emailNotifications.TicketCreatedAsync(ticket, cancellationToken);
+			return ticket;
 		});
 
 	public Task<DomainResult<TicketRecord>> GetAsync(string ticketId, CancellationToken cancellationToken = default) =>
@@ -268,7 +274,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.UpdateDetailsAsync(
+			var updated = await _ticketStore.UpdateDetailsAsync(
 				new UpdateTicketDetailsRequest
 				{
 					TicketId = command.TicketId,
@@ -284,6 +290,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					Tags = command.Tags
 				},
 				cancellationToken);
+
+			await _emailNotifications.TicketUpdatedAsync(updated, cancellationToken);
+			return updated;
 		});
 
 	public Task<DomainResult<TicketNoteRecord>> AddNoteAsync(AddTicketNoteCommand command, CancellationToken cancellationToken = default) =>
@@ -306,7 +315,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketNoteStore.AddAsync(
+			var note = await _ticketNoteStore.AddAsync(
 				new AddTicketNoteRequest
 				{
 					TicketId = command.TicketId,
@@ -315,6 +324,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					IsInternal = command.IsInternal
 				},
 				cancellationToken);
+
+			await _emailNotifications.NoteAddedAsync(ticket, note, cancellationToken);
+			return note;
 		});
 
 	public Task<DomainResult<PagedResult<TicketNoteRecord>>> GetNotesAsync(
@@ -344,7 +356,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 
 			var upload = await _attachmentUploadValidator.ValidateAsync(command, cancellationToken);
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketAttachmentStore.UploadAsync(
+			var attachment = await _ticketAttachmentStore.UploadAsync(
 				new UploadTicketAttachmentRequest
 				{
 					TicketId = command.TicketId,
@@ -355,6 +367,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					SizeBytes = upload.SizeBytes
 				},
 				cancellationToken);
+
+			await _emailNotifications.AttachmentAddedAsync(ticket, attachment, cancellationToken);
+			return attachment;
 		});
 
 	public Task<DomainResult<PagedResult<TicketAttachmentRecord>>> GetAttachmentsAsync(
@@ -409,6 +424,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
 			await _ticketAttachmentStore.SoftDeleteAsync(ticketId, attachmentId, userOid, cancellationToken);
+			await _emailNotifications.AttachmentDeletedAsync(ticket, attachmentId, cancellationToken);
 		});
 
 	public Task<DomainResult<PagedResult<TicketAuditEventRecord>>> GetAuditAsync(
@@ -438,7 +454,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.AssignAsync(
+			var updated = await _ticketStore.AssignAsync(
 				new AssignTicketRequest
 				{
 					TicketId = command.TicketId,
@@ -448,6 +464,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					ExpectedETag = command.ExpectedETag
 				},
 				cancellationToken);
+
+			await _emailNotifications.TicketAssignedAsync(updated, ticket.AssigneeOid, cancellationToken);
+			return updated;
 		});
 
 	public Task<DomainResult<TicketRecord>> AssignTeamAsync(AssignTicketTeamCommand command, CancellationToken cancellationToken = default) =>
@@ -460,7 +479,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.AssignTeamAsync(
+			var updated = await _ticketStore.AssignTeamAsync(
 				new AssignTicketTeamRequest
 				{
 					TicketId = command.TicketId,
@@ -470,6 +489,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					ExpectedETag = command.ExpectedETag
 				},
 				cancellationToken);
+
+			await _emailNotifications.TeamAssignedAsync(updated, ticket.AssignedTeamId, cancellationToken);
+			return updated;
 		});
 
 	public Task<DomainResult<TicketRecord>> SetStatusAsync(SetTicketStatusCommand command, CancellationToken cancellationToken = default) =>
@@ -492,7 +514,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var actorOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.SetStatusAsync(
+			var updated = await _ticketStore.SetStatusAsync(
 				new SetTicketStatusRequest
 				{
 					TicketId = command.TicketId,
@@ -502,6 +524,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					ExpectedETag = command.ExpectedETag
 				},
 				cancellationToken);
+
+			await _emailNotifications.StatusChangedAsync(updated, ticket.Status, command.Reason, cancellationToken);
+			return updated;
 		});
 
 	public Task<DomainResult<TicketRecord>> CloseAsync(CloseTicketCommand command, CancellationToken cancellationToken = default) =>
@@ -514,7 +539,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.CloseAsync(
+			var updated = await _ticketStore.CloseAsync(
 				new CloseTicketRequest
 				{
 					TicketId = command.TicketId,
@@ -523,6 +548,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					ExpectedETag = command.ExpectedETag
 				},
 				cancellationToken);
+
+			await _emailNotifications.TicketClosedAsync(updated, command.ResolutionNote, cancellationToken);
+			return updated;
 		});
 
 	public Task<DomainResult<TicketRecord>> ReopenAsync(ReopenTicketCommand command, CancellationToken cancellationToken = default) =>
@@ -535,7 +563,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			}
 
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
-			return await _ticketStore.ReopenAsync(
+			var updated = await _ticketStore.ReopenAsync(
 				new ReopenTicketRequest
 				{
 					TicketId = command.TicketId,
@@ -544,6 +572,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 					ExpectedETag = command.ExpectedETag
 				},
 				cancellationToken);
+
+			await _emailNotifications.TicketReopenedAsync(updated, command.Reason, cancellationToken);
+			return updated;
 		});
 
 	private async Task<TicketRecord> GetRequiredTicketAsync(string ticketId, CancellationToken cancellationToken)
