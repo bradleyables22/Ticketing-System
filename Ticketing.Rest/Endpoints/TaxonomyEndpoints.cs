@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Ticketing.Auth;
+using Ticketing.Data.Models;
 using Ticketing.Domain.Models;
 using Ticketing.Domain.Services;
 using Ticketing.Rest.Contracts;
@@ -27,7 +28,10 @@ internal static class TaxonomyEndpoints
 				var result = await taxonomyManagement.GetTypesAsync(includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.WithName("GetTicketTypes");
+			.WithName("GetTicketTypes")
+			.WithOkDocs<PagedResult<TicketTypeRecord>>(
+				"List ticket types",
+				"Returns top-level ticket taxonomy types. Set includeInactive to true for administrative screens that need retired values; use pageSize and pageToken for paging.");
 
 		taxonomy.MapPost("/types", async (
 				SaveTicketTypeHttpRequest request,
@@ -48,7 +52,10 @@ internal static class TaxonomyEndpoints
 				return DomainHttpResultMapper.ToCreated(result, type => $"/api/taxonomy/types/{type.TypeId}");
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("SaveTicketType");
+			.WithName("SaveTicketType")
+			.WithCreatedDocs<TicketTypeRecord>(
+				"Create or upsert a ticket type",
+				"Creates a ticket type or updates the requested TypeId when supplied in the request body. Types are the top-level classification used by routing and reporting.");
 
 		taxonomy.MapPut("/types/{typeId}", async (
 				string typeId,
@@ -70,7 +77,11 @@ internal static class TaxonomyEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("UpdateTicketType");
+			.WithName("UpdateTicketType")
+			.WithOkDocs<TicketTypeRecord>(
+				"Update a ticket type",
+				"Updates the name, description, sort order, and active state for an existing type id.",
+				conflict: true);
 
 		taxonomy.MapGet("/types/{typeId}/categories", async (
 				string typeId,
@@ -83,7 +94,10 @@ internal static class TaxonomyEndpoints
 				var result = await taxonomyManagement.GetCategoriesAsync(typeId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.WithName("GetTicketCategories");
+			.WithName("GetTicketCategories")
+			.WithOkDocs<PagedResult<TicketCategoryRecord>>(
+				"List ticket categories",
+				"Returns categories under a ticket type. Set includeInactive to true for setup/admin views; use pageSize and pageToken for paging.");
 
 		taxonomy.MapPost("/types/{typeId}/categories", async (
 				string typeId,
@@ -108,7 +122,10 @@ internal static class TaxonomyEndpoints
 					category => $"/api/taxonomy/types/{category.TypeId}/categories/{category.CategoryId}");
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("SaveTicketCategory");
+			.WithName("SaveTicketCategory")
+			.WithCreatedDocs<TicketCategoryRecord>(
+				"Create or upsert a ticket category",
+				"Creates a category under the route typeId or updates the requested CategoryId when supplied in the request body. Categories are used by routing, queues, and search.");
 
 		taxonomy.MapPut("/types/{typeId}/categories/{categoryId}", async (
 				string typeId,
@@ -132,7 +149,11 @@ internal static class TaxonomyEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("UpdateTicketCategory");
+			.WithName("UpdateTicketCategory")
+			.WithOkDocs<TicketCategoryRecord>(
+				"Update a ticket category",
+				"Updates the name, description, sort order, and active state for a category under the route typeId.",
+				conflict: true);
 
 		taxonomy.MapGet("/types/{typeId}/categories/{categoryId}/subcategories", async (
 				string categoryId,
@@ -145,7 +166,10 @@ internal static class TaxonomyEndpoints
 				var result = await taxonomyManagement.GetSubcategoriesAsync(categoryId, includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.WithName("GetTicketSubcategories");
+			.WithName("GetTicketSubcategories")
+			.WithOkDocs<PagedResult<TicketSubcategoryRecord>>(
+				"List ticket subcategories",
+				"Returns subcategories under a ticket category. Subcategories are the most specific classification level used by routing.");
 
 		taxonomy.MapPost("/types/{typeId}/categories/{categoryId}/subcategories", async (
 				string typeId,
@@ -172,7 +196,10 @@ internal static class TaxonomyEndpoints
 					subcategory => $"/api/taxonomy/types/{subcategory.TypeId}/categories/{subcategory.CategoryId}/subcategories/{subcategory.SubcategoryId}");
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("SaveTicketSubcategory");
+			.WithName("SaveTicketSubcategory")
+			.WithCreatedDocs<TicketSubcategoryRecord>(
+				"Create or upsert a ticket subcategory",
+				"Creates a subcategory under the route type/category or updates the requested SubcategoryId when supplied in the request body. Subcategories can be used for the most specific team routing rules.");
 
 		taxonomy.MapPut("/types/{typeId}/categories/{categoryId}/subcategories/{subcategoryId}", async (
 				string typeId,
@@ -198,7 +225,11 @@ internal static class TaxonomyEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTaxonomy)
-			.WithName("UpdateTicketSubcategory");
+			.WithName("UpdateTicketSubcategory")
+			.WithOkDocs<TicketSubcategoryRecord>(
+				"Update a ticket subcategory",
+				"Updates the name, description, sort order, and active state for a subcategory under the route type/category.",
+				conflict: true);
 
 		return taxonomy;
 	}

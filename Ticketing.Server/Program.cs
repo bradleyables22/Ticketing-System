@@ -81,6 +81,17 @@ builder.Services.AddOpenApi(options =>
 {
 	options.AddDocumentTransformer((document, _, _) =>
 	{
+		document.Info.Title = "Ticketing API";
+		document.Info.Description = "REST API for ticket submission, ticket workflow, team routing, taxonomy setup, user lookup, attachments, audit history, OAuth discovery, and administrative system information.";
+
+		document.Tags ??= new HashSet<OpenApiTag>();
+		AddTagDescription(document, "Tickets", "Ticket creation, search, queues, notes, image attachments, audit, assignment, and workflow transitions.");
+		AddTagDescription(document, "Teams", "Team definitions, team memberships, and taxonomy routing assignments used to route incoming tickets.");
+		AddTagDescription(document, "Taxonomy", "Ticket type, category, and subcategory setup used for classification, routing, search, and reporting.");
+		AddTagDescription(document, "Users", "Current-user context and user profile lookup/search for assignment and administration workflows.");
+		AddTagDescription(document, "System", "Administrative system metadata and health-oriented host information.");
+		AddTagDescription(document, "OAuth", "Protected resource metadata used by OAuth-capable clients to discover authorization requirements.");
+
 		document.Components ??= new OpenApiComponents();
 		document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
 		document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
@@ -96,6 +107,19 @@ builder.Services.AddOpenApi(options =>
 		{
 			[new OpenApiSecuritySchemeReference("Bearer", document, null)] = []
 		});
+
+		return Task.CompletedTask;
+	});
+
+	options.AddOperationTransformer((operation, _, _) =>
+	{
+		foreach (var parameter in operation.Parameters ?? [])
+		{
+			if (GetOpenApiParameterDescription(parameter.Name) is { } description)
+			{
+				parameter.Description = description;
+			}
+		}
 
 		return Task.CompletedTask;
 	});
@@ -123,6 +147,61 @@ app.MapTicketingRestApi();
 app.MapHealthChecks("/health", new HealthCheckOptions()).AllowAnonymous();
 
 app.Run();
+
+static void AddTagDescription(OpenApiDocument document, string name, string description)
+{
+	if (document.Tags is not { } tags)
+	{
+		return;
+	}
+
+	var existing = tags.FirstOrDefault(tag => tag.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) == true);
+	if (existing is not null)
+	{
+		existing.Description = description;
+		return;
+	}
+
+	tags.Add(new OpenApiTag
+	{
+		Name = name,
+		Description = description
+	});
+}
+
+static string? GetOpenApiParameterDescription(string? name) =>
+	name switch
+	{
+		"ticketId" => "Opaque ticket id returned by create/search/list operations.",
+		"ticketNumber" => "Human-readable ticket number, such as TCK-000001.",
+		"attachmentId" => "Opaque attachment id returned by the upload or attachment-list endpoint.",
+		"noteId" => "Opaque note id returned by the add-note or note-list endpoint.",
+		"teamId" => "Opaque team id used by team definitions, memberships, queues, and routing assignments.",
+		"userOid" => "Microsoft Entra object id for a user.",
+		"assigneeOid" => "Microsoft Entra object id for the assigned technician. Use null in request bodies to clear assignment.",
+		"submitterOid" => "Microsoft Entra object id for the ticket submitter.",
+		"assignedTeamId" => "Team id for the team currently owning or filtering ticket work.",
+		"typeId" => "Ticket type id from the taxonomy endpoints.",
+		"categoryId" => "Ticket category id from the taxonomy endpoints.",
+		"subcategoryId" => "Ticket subcategory id from the taxonomy endpoints.",
+		"assignmentId" => "Opaque team routing assignment id.",
+		"status" => "Ticket status filter or target workflow status.",
+		"priority" => "Ticket priority filter or priority-specific routing value.",
+		"tag" => "Normalized ticket tag value.",
+		"q" => "Free-text ticket search query.",
+		"query" => "User search query. Graph-backed search checks display name, mail, and userPrincipalName.",
+		"includeInactive" => "When true, includes inactive taxonomy, team, membership, routing, or user records where the endpoint supports them.",
+		"pageSize" => "Requested page size. Missing values default to 50 and values above 500 are clamped.",
+		"pageToken" => "Opaque continuation token from a previous response's nextPageToken.",
+		"openedFromUtc" => "Inclusive lower bound for ticket opened timestamp, in UTC.",
+		"openedToUtc" => "Inclusive upper bound for ticket opened timestamp, in UTC.",
+		"closedFromUtc" => "Inclusive lower bound for ticket closed timestamp, in UTC.",
+		"closedToUtc" => "Inclusive upper bound for ticket closed timestamp, in UTC.",
+		"If-Match" => "Optional ETag concurrency header. Request-body ExpectedETag takes precedence when both are supplied.",
+		"ifMatch" => "Optional ETag concurrency value from the If-Match header. Request-body ExpectedETag takes precedence when both are supplied.",
+		"resourcePath" => "Optional protected resource path segment used by path-aware OAuth metadata discovery.",
+		_ => null
+	};
 
 static void ConfigureCommonAuthOptions(
 	TicketingAuthOptions options,

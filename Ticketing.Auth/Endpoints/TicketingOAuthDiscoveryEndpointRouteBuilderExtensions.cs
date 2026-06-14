@@ -19,11 +19,20 @@ public static class TicketingOAuthDiscoveryEndpointRouteBuilderExtensions
 		endpoints.MapGet("/.well-known/oauth-protected-resource", GetProtectedResourceMetadata)
 			.AllowAnonymous()
 			.WithTags("OAuth")
-			.WithName("GetOAuthProtectedResourceMetadata");
+			.WithName("GetOAuthProtectedResourceMetadata")
+			.WithSummary("Get OAuth protected resource metadata")
+			.WithDescription("Returns RFC 9728-style protected resource metadata for OAuth-capable clients. Clients use this document to discover the resource identifier, authorization servers, bearer methods, and supported scopes.")
+			.Produces<OAuthProtectedResourceMetadata>(StatusCodes.Status200OK)
+			.Produces(StatusCodes.Status404NotFound);
 
 		endpoints.MapGet("/.well-known/oauth-protected-resource/{**resourcePath}", GetProtectedResourceMetadata)
 			.AllowAnonymous()
-			.WithTags("OAuth");
+			.WithTags("OAuth")
+			.WithName("GetOAuthProtectedResourceMetadataForResourcePath")
+			.WithSummary("Get OAuth metadata for a resource path")
+			.WithDescription("Returns protected resource metadata when the resource identifier includes a path segment. This supports clients that resolve metadata using the path-aware well-known convention.")
+			.Produces<OAuthProtectedResourceMetadata>(StatusCodes.Status200OK)
+			.Produces(StatusCodes.Status404NotFound);
 
 		return endpoints;
 	}

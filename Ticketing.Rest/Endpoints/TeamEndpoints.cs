@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Ticketing.Auth;
+using Ticketing.Data.Models;
 using Ticketing.Domain.Models;
 using Ticketing.Domain.Services;
 using Ticketing.Rest.Contracts;
@@ -35,7 +36,10 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToCreated(result, team => $"/api/teams/{team.TeamId}");
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)
-			.WithName("SaveTeam");
+			.WithName("SaveTeam")
+			.WithCreatedDocs<TeamRecord>(
+				"Create or upsert a team",
+				"Creates a team or updates the requested TeamId when supplied in the request body. Teams own ticket queues and can be targeted by taxonomy routing rules.");
 
 		teams.MapPut("/{teamId}", async (
 				string teamId,
@@ -56,7 +60,12 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)
-			.WithName("UpdateTeam");
+			.WithName("UpdateTeam")
+			.WithOkDocs<TeamRecord>(
+				"Update a team",
+				"Updates team name, description, and active state for the route teamId. Managers and admins use inactive teams to retire routing without deleting history.",
+				notFound: false,
+				conflict: true);
 
 		teams.MapGet("/", async (
 				bool includeInactive,
@@ -69,7 +78,10 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
-			.WithName("GetTeams");
+			.WithName("GetTeams")
+			.WithOkDocs<PagedResult<TeamRecord>>(
+				"List teams",
+				"Returns teams visible to ticket workers. Set includeInactive to true for administrative views that need retired teams; use pageSize and pageToken for paging.");
 
 		teams.MapGet("/my-memberships", async (
 				bool includeInactive,
@@ -81,7 +93,10 @@ internal static class TeamEndpoints
 				var result = await teamManagement.GetMyMembershipsAsync(includeInactive, pageSize, pageToken, cancellationToken);
 				return DomainHttpResultMapper.ToResult(result);
 			})
-			.WithName("GetMyTeamMemberships");
+			.WithName("GetMyTeamMemberships")
+			.WithOkDocs<PagedResult<TeamMemberRecord>>(
+				"List my team memberships",
+				"Returns team memberships for the authenticated user. This is useful for clients deciding which team queues to show by default.");
 
 		teams.MapGet("/{teamId}", async (
 				string teamId,
@@ -92,7 +107,11 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
-			.WithName("GetTeam");
+			.WithName("GetTeam")
+			.WithOkDocs<TeamRecord>(
+				"Get a team",
+				"Returns a single team definition by teamId.",
+				notFound: true);
 
 		teams.MapPut("/{teamId}/members/{userOid}", async (
 				string teamId,
@@ -114,7 +133,12 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)
-			.WithName("SaveTeamMember");
+			.WithName("SaveTeamMember")
+			.WithOkDocs<TeamMemberRecord>(
+				"Create or update team membership",
+				"Adds a user to a team or updates their team role and active state. Team roles are domain data, not Entra app roles.",
+				notFound: true,
+				conflict: true);
 
 		teams.MapGet("/{teamId}/members", async (
 				string teamId,
@@ -128,7 +152,11 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.WorkTicket)
-			.WithName("GetTeamMembers");
+			.WithName("GetTeamMembers")
+			.WithOkDocs<PagedResult<TeamMemberRecord>>(
+				"List team members",
+				"Returns members for a team. Set includeInactive to true for administrative views; use pageSize and pageToken for paging.",
+				notFound: false);
 
 		teams.MapPost("/{teamId}/category-assignments", async (
 				string teamId,
@@ -156,7 +184,10 @@ internal static class TeamEndpoints
 					assignment => $"/api/teams/{assignment.TeamId}/category-assignments/{assignment.AssignmentId}");
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)
-			.WithName("SaveTeamCategoryAssignment");
+			.WithName("SaveTeamCategoryAssignment")
+			.WithCreatedDocs<TeamCategoryAssignmentRecord>(
+				"Create or upsert team routing",
+				"Creates or updates a routing rule that maps a type, category, subcategory, priority-specific variant, or default fallback to a team. More specific taxonomy matches win before broader defaults.");
 
 		teams.MapGet("/category-assignments", async (
 				string? teamId,
@@ -170,7 +201,10 @@ internal static class TeamEndpoints
 				return DomainHttpResultMapper.ToResult(result);
 			})
 			.RequireAuthorization(TicketingAuthPolicies.ManageTeams)
-			.WithName("GetTeamCategoryAssignments");
+			.WithName("GetTeamCategoryAssignments")
+			.WithOkDocs<PagedResult<TeamCategoryAssignmentRecord>>(
+				"List team routing assignments",
+				"Returns taxonomy routing assignments, optionally filtered by teamId. Use this to inspect how new tickets will be assigned to teams.");
 
 		return teams;
 	}

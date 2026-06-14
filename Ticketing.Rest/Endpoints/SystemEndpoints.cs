@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Hosting;
 using Ticketing.Auth;
 using Ticketing.Rest.Contracts;
+using Ticketing.Rest.Infrastructure;
 
 namespace Ticketing.Rest.Endpoints;
 
@@ -24,7 +25,10 @@ internal static class SystemEndpoints
 				Version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(),
 				ServerTimeUtc = DateTimeOffset.UtcNow
 			}))
-			.WithName("GetSystemInfo");
+			.WithName("GetSystemInfo")
+			.WithOkDocs<SystemInfoResponse>(
+				"Get system information",
+				"Returns basic host information for administrators, including application name, environment, assembly version, and current server UTC time.");
 
 		return system;
 	}
