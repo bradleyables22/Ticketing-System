@@ -33,6 +33,7 @@ internal sealed class AzureTicketStore : ITicketStore
 		ArgumentException.ThrowIfNullOrWhiteSpace(request.Title);
 		ArgumentException.ThrowIfNullOrWhiteSpace(request.Description);
 		ArgumentException.ThrowIfNullOrWhiteSpace(request.SubmitterOid);
+		ArgumentException.ThrowIfNullOrWhiteSpace(request.CreatedByOid);
 
 		var openedUtc = DateTimeOffset.UtcNow;
 		var assignedTeamId = NormalizeOptional(request.AssignedTeamId);
@@ -66,12 +67,14 @@ internal sealed class AzureTicketStore : ITicketStore
 		await _projector.UpsertAsync(entity, cancellationToken);
 		await _auditWriter.AppendAsync(
 			entity.TicketId,
-			entity.SubmitterOid,
+			entity.CreatedByOid,
 			TicketAuditEventType.TicketCreated,
 			null,
 			null,
 			entity.TicketNumber,
-			"Ticket created.",
+			string.Equals(entity.SubmitterOid, entity.CreatedByOid, StringComparison.OrdinalIgnoreCase)
+				? "Ticket created."
+				: $"Ticket created on behalf of '{entity.SubmitterOid}'.",
 			cancellationToken);
 
 		return entity.ToRecord();

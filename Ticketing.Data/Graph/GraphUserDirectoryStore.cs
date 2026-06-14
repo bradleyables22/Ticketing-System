@@ -22,6 +22,30 @@ internal sealed class GraphUserDirectoryStore : IUserDirectoryStore
 		_options = options.Value;
 	}
 
+	public async Task<TicketUserProfile?> GetUserAsync(
+		string userOid,
+		CancellationToken cancellationToken = default)
+	{
+		ValidateOptions();
+		ArgumentException.ThrowIfNullOrWhiteSpace(userOid);
+
+		var requestUri = $"{NormalizeBaseUri(_options.GraphBaseUri)}/users/{Uri.EscapeDataString(userOid.Trim())}?$select=id,displayName,mail,userPrincipalName,department,jobTitle,accountEnabled";
+		using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+		request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await GetAccessTokenAsync(cancellationToken));
+
+		using var response = await _httpClient.SendAsync(request, cancellationToken);
+		if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+		{
+			return null;
+		}
+
+		response.EnsureSuccessStatusCode();
+
+		await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+		var graphUser = await JsonSerializer.DeserializeAsync<GraphUser>(stream, JsonOptions, cancellationToken);
+		return graphUser is null ? null : ToProfile(graphUser);
+	}
+
 	public async Task<PagedResult<TicketUserProfile>> SearchUsersAsync(
 		string? query,
 		bool includeInactive = false,

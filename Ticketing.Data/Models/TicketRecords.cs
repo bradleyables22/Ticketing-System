@@ -22,6 +22,8 @@ public sealed record TicketRecord
 
 	public required string SubmitterOid { get; init; }
 
+	public required string CreatedByOid { get; init; }
+
 	public string? AssigneeOid { get; init; }
 
 	public string? AssignedTeamId { get; init; }
@@ -60,6 +62,8 @@ public sealed record TicketSummary
 	public string? SubcategoryId { get; init; }
 
 	public required string SubmitterOid { get; init; }
+
+	public required string CreatedByOid { get; init; }
 
 	public string? AssigneeOid { get; init; }
 

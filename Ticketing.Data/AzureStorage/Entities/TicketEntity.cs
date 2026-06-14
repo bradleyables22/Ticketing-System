@@ -35,6 +35,8 @@ internal sealed class TicketEntity : ITableEntity
 
 	public string SubmitterOid { get; set; } = string.Empty;
 
+	public string CreatedByOid { get; set; } = string.Empty;
+
 	public string? AssigneeOid { get; set; }
 
 	public string? AssignedTeamId { get; set; }
@@ -68,6 +70,7 @@ internal sealed class TicketEntity : ITableEntity
 			CategoryId = CategoryId,
 			SubcategoryId = SubcategoryId,
 			SubmitterOid = SubmitterOid,
+			CreatedByOid = CreatedByOid,
 			AssigneeOid = AssigneeOid,
 			AssignedTeamId = AssignedTeamId,
 			OpenedUtc = OpenedUtc,
@@ -91,6 +94,7 @@ internal sealed class TicketEntity : ITableEntity
 			CategoryId = CategoryId,
 			SubcategoryId = SubcategoryId,
 			SubmitterOid = SubmitterOid,
+			CreatedByOid = string.IsNullOrWhiteSpace(CreatedByOid) ? SubmitterOid : CreatedByOid,
 			AssigneeOid = AssigneeOid,
 			AssignedTeamId = AssignedTeamId,
 			OpenedUtc = OpenedUtc,
@@ -121,6 +125,7 @@ internal sealed class TicketEntity : ITableEntity
 			CategoryId = NormalizeOptional(request.CategoryId),
 			SubcategoryId = NormalizeOptional(request.SubcategoryId),
 			SubmitterOid = request.SubmitterOid.Trim(),
+			CreatedByOid = request.CreatedByOid.Trim(),
 			AssigneeOid = NormalizeOptional(request.AssigneeOid),
 			AssignedTeamId = NormalizeOptional(assignedTeamId),
 			OpenedUtc = openedUtc,

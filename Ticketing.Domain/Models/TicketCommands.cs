@@ -8,6 +8,8 @@ public sealed record CreateTicketCommand
 
 	public required string Description { get; init; }
 
+	public string? SubmitterOid { get; init; }
+
 	public TicketPriority Priority { get; init; } = TicketPriority.Normal;
 
 	public string? TypeId { get; init; }

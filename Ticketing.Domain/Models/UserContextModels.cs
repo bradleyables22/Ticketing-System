@@ -25,6 +25,8 @@ public sealed record TicketingPermissionSet
 {
 	public bool CanSubmitTickets { get; init; }
 
+	public bool CanSubmitTicketsOnBehalf { get; init; }
+
 	public bool CanWorkTickets { get; init; }
 
 	public bool CanViewAllTickets { get; init; }

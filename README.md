@@ -70,7 +70,8 @@ builder.Services.AddTicketingData(connectionString, options =>
 Tickets currently support:
 
 - title and description
-- submitter
+- submitter/requester
+- creator when a worker submits on behalf of someone else
 - assigned technician
 - assigned team
 - status
@@ -135,7 +136,8 @@ Public domain workflow and management services return `DomainResult<T>` so REST,
 
 The domain layer owns rules such as:
 
-- callers cannot choose their own submitter id
+- normal callers cannot choose their own submitter id
+- technicians, managers, and admins can create tickets on behalf of another user while preserving who created the ticket
 - users can view their own tickets
 - technicians can work tickets for teams they belong to
 - internal notes require worker access
@@ -284,6 +286,8 @@ Current route groups:
 
 Ticket endpoints currently cover create, read, search, queues, notes, attachments, audit, assignment, team reassignment, status transitions, close, reopen, and cancel workflows.
 
+Ticket creation defaults to the authenticated user as the submitter/requester. Technicians, managers, and admins can pass `submitterOid` on create to submit on behalf of another user. The ticket stores both `SubmitterOid` and `CreatedByOid`, so requester history, notifications, reporting, and audit can distinguish the employee needing help from the worker who entered the ticket. On-behalf submitters must exist in the local user profile cache or be resolvable through Microsoft Graph when Graph user search is configured.
+
 Team endpoints currently cover team maintenance, membership maintenance, and category routing assignments.
 
 Taxonomy endpoints currently cover types, categories, and subcategories.
@@ -391,6 +395,7 @@ Queue messages are JSON with camel-case property names:
     "status": "Open",
     "priority": "Normal",
     "submitterOid": "user-1",
+    "createdByOid": "user-1",
     "assigneeOid": null,
     "assignedTeamId": "helpdesk"
   },

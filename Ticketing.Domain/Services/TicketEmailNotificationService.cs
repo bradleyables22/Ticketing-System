@@ -413,6 +413,7 @@ internal sealed class TicketEmailNotificationService
 			CategoryId = ticket.CategoryId,
 			SubcategoryId = ticket.SubcategoryId,
 			SubmitterOid = ticket.SubmitterOid,
+			CreatedByOid = ticket.CreatedByOid,
 			AssigneeOid = ticket.AssigneeOid,
 			AssignedTeamId = ticket.AssignedTeamId,
 			OpenedUtc = ticket.OpenedUtc,

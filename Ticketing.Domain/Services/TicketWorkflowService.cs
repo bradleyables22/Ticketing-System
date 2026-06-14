@@ -27,6 +27,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 	private readonly ITicketAuditStore _ticketAuditStore;
 	private readonly ITicketPermissionService _permissions;
 	private readonly ITeamStore _teamStore;
+	private readonly IUserProfileStore _userProfileStore;
+	private readonly IUserDirectoryStore? _userDirectoryStore;
 	private readonly TicketAttachmentUploadValidator _attachmentUploadValidator;
 	private readonly TicketEmailNotificationService _emailNotifications;
 
@@ -39,6 +41,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		ITicketAuditStore ticketAuditStore,
 		ITicketPermissionService permissions,
 		ITeamStore teamStore,
+		IUserProfileStore userProfileStore,
+		IEnumerable<IUserDirectoryStore> userDirectoryStores,
 		TicketAttachmentUploadValidator attachmentUploadValidator,
 		TicketEmailNotificationService emailNotifications)
 	{
@@ -50,6 +54,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		_ticketAuditStore = ticketAuditStore;
 		_permissions = permissions;
 		_teamStore = teamStore;
+		_userProfileStore = userProfileStore;
+		_userDirectoryStore = userDirectoryStores.FirstOrDefault();
 		_attachmentUploadValidator = attachmentUploadValidator;
 		_emailNotifications = emailNotifications;
 	}
@@ -60,14 +66,25 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			ArgumentException.ThrowIfNullOrWhiteSpace(command.Title);
 			ArgumentException.ThrowIfNullOrWhiteSpace(command.Description);
 
-			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			var createdByOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
+			var submitterOid = NormalizeOptional(command.SubmitterOid) ?? createdByOid;
+			if (!string.Equals(submitterOid, createdByOid, StringComparison.OrdinalIgnoreCase))
+			{
+				if (!_permissions.IsTechnicianOrAbove())
+				{
+					throw new TicketingForbiddenException("Only technicians, managers, and admins can submit tickets on behalf of another user.");
+				}
+
+				await EnsureSubmitterExistsAsync(submitterOid, cancellationToken);
+			}
 
 			var ticket = await _ticketStore.CreateAsync(
 				new CreateTicketRequest
 				{
 					Title = command.Title,
 					Description = command.Description,
-					SubmitterOid = userOid,
+					SubmitterOid = submitterOid,
+					CreatedByOid = createdByOid,
 					Priority = command.Priority,
 					TypeId = command.TypeId,
 					CategoryId = command.CategoryId,
@@ -592,6 +609,33 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		}
 	}
 
+	private async Task EnsureSubmitterExistsAsync(string submitterOid, CancellationToken cancellationToken)
+	{
+		if (await _userProfileStore.GetAsync(submitterOid, cancellationToken) is not null)
+		{
+			return;
+		}
+
+		if (_userDirectoryStore is not null
+			&& await _userDirectoryStore.GetUserAsync(submitterOid, cancellationToken) is { } directoryProfile)
+		{
+			await _userProfileStore.UpsertAsync(
+				new UpsertUserProfileRequest
+				{
+					UserOid = directoryProfile.UserOid,
+					DisplayName = directoryProfile.DisplayName,
+					Email = directoryProfile.Email,
+					Department = directoryProfile.Department,
+					JobTitle = directoryProfile.JobTitle,
+					IsActive = directoryProfile.IsActive
+				},
+				cancellationToken);
+			return;
+		}
+
+		throw new TicketingNotFoundException("User", submitterOid);
+	}
+
 	private void EnsureCanViewAllTickets(string message)
 	{
 		_currentUser.RequireUserOid();
@@ -834,6 +878,9 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 	private static bool Matches(string? actual, string? expected) =>
 		string.IsNullOrWhiteSpace(expected) || string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
 
+	private static string? NormalizeOptional(string? value) =>
+		string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
 	private static bool Contains(string? actual, string expected) =>
 		actual?.Contains(expected, StringComparison.OrdinalIgnoreCase) == true;
 
@@ -849,6 +896,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			CategoryId = ticket.CategoryId,
 			SubcategoryId = ticket.SubcategoryId,
 			SubmitterOid = ticket.SubmitterOid,
+			CreatedByOid = ticket.CreatedByOid,
 			AssigneeOid = ticket.AssigneeOid,
 			AssignedTeamId = ticket.AssignedTeamId,
 			OpenedUtc = ticket.OpenedUtc,

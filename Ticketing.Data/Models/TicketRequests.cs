@@ -8,6 +8,8 @@ public sealed record CreateTicketRequest
 
 	public required string SubmitterOid { get; init; }
 
+	public required string CreatedByOid { get; init; }
+
 	public string? AssigneeOid { get; init; }
 
 	public string? AssignedTeamId { get; init; }

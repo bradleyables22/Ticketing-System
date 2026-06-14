@@ -30,6 +30,7 @@ internal static class TicketEndpoints
 					{
 						Title = request.Title,
 						Description = request.Description,
+						SubmitterOid = request.SubmitterOid,
 						Priority = request.Priority,
 						TypeId = request.TypeId,
 						CategoryId = request.CategoryId,
@@ -44,7 +45,7 @@ internal static class TicketEndpoints
 			.WithName("CreateTicket")
 			.WithCreatedDocs<TicketRecord>(
 				"Create a ticket",
-				"Creates a new ticket for the authenticated user. The caller cannot choose the submitter; the server uses the current principal, resolves the initial team from taxonomy routing, writes audit history, updates queue projections, and enqueues email notification work.");
+				"Creates a new ticket. By default the authenticated user is the submitter; technicians, managers, and admins can set submitterOid to create a ticket on behalf of another user. The server records both the requester and creator, resolves the initial team from taxonomy routing, writes audit history, updates queue projections, and enqueues email notification work.");
 
 		tickets.MapGet("/search", async (
 				string? q,

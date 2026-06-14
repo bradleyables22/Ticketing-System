@@ -50,6 +50,7 @@ internal sealed class TicketUserService : ITicketUserService
 				Permissions = new TicketingPermissionSet
 				{
 					CanSubmitTickets = true,
+					CanSubmitTicketsOnBehalf = _permissions.IsTechnicianOrAbove(),
 					CanWorkTickets = _permissions.IsTechnicianOrAbove(),
 					CanViewAllTickets = _permissions.CanViewAllTickets(),
 					CanManageTeams = _permissions.CanManageTeams(),
