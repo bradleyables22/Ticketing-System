@@ -27,6 +27,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 	private readonly ITicketAuditStore _ticketAuditStore;
 	private readonly ITicketPermissionService _permissions;
 	private readonly ITeamStore _teamStore;
+	private readonly TicketAttachmentUploadValidator _attachmentUploadValidator;
 
 	public TicketWorkflowService(
 		CurrentUserService currentUser,
@@ -36,7 +37,8 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		ITicketAttachmentStore ticketAttachmentStore,
 		ITicketAuditStore ticketAuditStore,
 		ITicketPermissionService permissions,
-		ITeamStore teamStore)
+		ITeamStore teamStore,
+		TicketAttachmentUploadValidator attachmentUploadValidator)
 	{
 		_currentUser = currentUser;
 		_ticketStore = ticketStore;
@@ -46,6 +48,7 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 		_ticketAuditStore = ticketAuditStore;
 		_permissions = permissions;
 		_teamStore = teamStore;
+		_attachmentUploadValidator = attachmentUploadValidator;
 	}
 
 	public Task<DomainResult<TicketRecord>> CreateAsync(CreateTicketCommand command, CancellationToken cancellationToken = default) =>
@@ -339,16 +342,17 @@ internal sealed class TicketWorkflowService : ITicketWorkflowService
 			var ticket = await GetRequiredTicketAsync(command.TicketId, cancellationToken);
 			await EnsureCanViewAsync(ticket, cancellationToken);
 
+			var upload = await _attachmentUploadValidator.ValidateAsync(command, cancellationToken);
 			var userOid = await _currentUser.RequireUserOidAndSyncProfileAsync(cancellationToken);
 			return await _ticketAttachmentStore.UploadAsync(
 				new UploadTicketAttachmentRequest
 				{
 					TicketId = command.TicketId,
 					UploadedByOid = userOid,
-					OriginalFileName = command.OriginalFileName,
-					ContentType = command.ContentType,
-					Content = command.Content,
-					SizeBytes = command.SizeBytes
+					OriginalFileName = upload.OriginalFileName,
+					ContentType = upload.ContentType,
+					Content = upload.Content,
+					SizeBytes = upload.SizeBytes
 				},
 				cancellationToken);
 		});

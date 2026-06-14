@@ -59,6 +59,7 @@ internal static class DomainHttpResultMapper
 			DomainErrorType.Forbidden => StatusCodes.Status403Forbidden,
 			DomainErrorType.NotFound => StatusCodes.Status404NotFound,
 			DomainErrorType.Validation => StatusCodes.Status400BadRequest,
+			DomainErrorType.PayloadTooLarge => StatusCodes.Status413PayloadTooLarge,
 			DomainErrorType.Conflict => StatusCodes.Status409Conflict,
 			_ => StatusCodes.Status500InternalServerError
 		};
@@ -70,6 +71,7 @@ internal static class DomainHttpResultMapper
 			DomainErrorType.Forbidden => "Forbidden",
 			DomainErrorType.NotFound => "Not found",
 			DomainErrorType.Validation => "Validation failed",
+			DomainErrorType.PayloadTooLarge => "Payload too large",
 			DomainErrorType.Conflict => "Conflict",
 			_ => "Unexpected error"
 		};

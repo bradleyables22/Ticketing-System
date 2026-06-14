@@ -56,3 +56,11 @@ public sealed class TicketingValidationException : TicketingDomainException
 	{
 	}
 }
+
+public sealed class TicketingPayloadTooLargeException : TicketingDomainException
+{
+	public TicketingPayloadTooLargeException(string message)
+		: base("payload_too_large", message)
+	{
+	}
+}

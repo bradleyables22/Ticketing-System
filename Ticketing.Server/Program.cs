@@ -3,11 +3,13 @@ using Ticketing.Auth.DependencyInjection;
 using Ticketing.Auth.Endpoints;
 using Ticketing.Data.Configuration;
 using Ticketing.Data.DependencyInjection;
+using Ticketing.Domain.Configuration;
 using Ticketing.Domain.DependencyInjection;
 using Ticketing.Rest.DependencyInjection;
 using Ticketing.Rest.Endpoints;
 using Ticketing.Server.LocalDevelopment;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -61,6 +63,10 @@ if (builder.Environment.IsDevelopment())
 		builder.Configuration.GetSection("Ticketing:LocalDevelopment:Azurite"));
 	builder.Services.AddHostedService<LocalAzuriteHostedService>();
 }
+
+var attachmentUploadOptions = ConfigureAttachmentUploadOptions(builder.Configuration);
+builder.Services.AddSingleton(attachmentUploadOptions);
+ConfigureServerUploadLimits(builder, attachmentUploadOptions);
 
 builder.Services.AddTicketingData(azureStorageConnectionString);
 builder.Services.AddTicketingGraphUserDirectory(options => ConfigureGraphUserDirectory(options, builder.Configuration));
@@ -430,10 +436,92 @@ static void ConfigureGraphUserDirectory(
 		?? options.GraphBaseUri;
 }
 
+static TicketAttachmentUploadOptions ConfigureAttachmentUploadOptions(IConfiguration configuration)
+{
+	var options = new TicketAttachmentUploadOptions();
+
+	var maxSizeMegabytes = GetConfiguredLong(
+		configuration,
+		"TICKETING_ATTACHMENTS_MAX_SIZE_MB",
+		"Ticketing:Attachments:MaxSizeMegabytes");
+	if (maxSizeMegabytes is > 0)
+	{
+		options.MaxSizeBytes = checked(maxSizeMegabytes.Value * 1024 * 1024);
+	}
+
+	var maxSizeBytes = GetConfiguredLong(
+		configuration,
+		"TICKETING_ATTACHMENTS_MAX_SIZE_BYTES",
+		"Ticketing:Attachments:MaxSizeBytes");
+	if (maxSizeBytes is > 0)
+	{
+		options.MaxSizeBytes = maxSizeBytes.Value;
+	}
+
+	if (options.MaxSizeBytes <= 0)
+	{
+		throw new InvalidOperationException("Attachment max size must be greater than zero.");
+	}
+
+	options.AllowedContentTypes = GetConfiguredList(
+		configuration,
+		"TICKETING_ATTACHMENTS_ALLOWED_CONTENT_TYPES",
+		"Ticketing:Attachments:AllowedContentTypes")
+		?? options.AllowedContentTypes;
+
+	options.AllowedExtensions = GetConfiguredList(
+		configuration,
+		"TICKETING_ATTACHMENTS_ALLOWED_EXTENSIONS",
+		"Ticketing:Attachments:AllowedExtensions")
+		?? options.AllowedExtensions;
+
+	options.ValidateImageSignatures = GetConfiguredBool(
+		configuration,
+		options.ValidateImageSignatures,
+		"TICKETING_ATTACHMENTS_VALIDATE_IMAGE_SIGNATURES",
+		"Ticketing:Attachments:ValidateImageSignatures");
+
+	return options;
+}
+
+static void ConfigureServerUploadLimits(
+	WebApplicationBuilder builder,
+	TicketAttachmentUploadOptions attachmentUploadOptions)
+{
+	const long multipartOverheadBytes = 1024 * 1024;
+	var requestBodyLimit = attachmentUploadOptions.MaxSizeBytes >= long.MaxValue - multipartOverheadBytes
+		? long.MaxValue
+		: attachmentUploadOptions.MaxSizeBytes + multipartOverheadBytes;
+
+	builder.Services.Configure<FormOptions>(options =>
+	{
+		options.MultipartBodyLengthLimit = requestBodyLimit;
+	});
+
+	builder.WebHost.ConfigureKestrel(options =>
+	{
+		if (!options.Limits.MaxRequestBodySize.HasValue
+			|| options.Limits.MaxRequestBodySize.Value < requestBodyLimit)
+		{
+			options.Limits.MaxRequestBodySize = requestBodyLimit;
+		}
+	});
+}
+
 static bool IsDevelopmentAuthMode(string authMode) =>
 	authMode.Equals("Development", StringComparison.OrdinalIgnoreCase)
 	|| authMode.Equals("Dev", StringComparison.OrdinalIgnoreCase)
 	|| authMode.Equals("Local", StringComparison.OrdinalIgnoreCase);
+
+static long? GetConfiguredLong(
+	IConfiguration configuration,
+	params string[] keys)
+{
+	var value = GetConfiguredValue(configuration, keys);
+	return long.TryParse(value, out var parsed)
+		? parsed
+		: null;
+}
 
 static IEnumerable<string> SplitConfiguredList(string value) =>
 	value.Split([';', ',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

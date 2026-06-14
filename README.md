@@ -305,6 +305,46 @@ List-style REST endpoints accept `pageSize` and `pageToken`. Missing page sizes 
 
 Pass `nextPageToken` back as `pageToken` to read the next page.
 
+## Attachment Uploads
+
+Ticket attachments are image-only by default. Uploads are accepted as `multipart/form-data` on:
+
+```text
+POST /api/tickets/{ticketId}/attachments
+```
+
+Default upload policy:
+
+- maximum image size: `10 MiB`
+- supported content types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/bmp`, `image/tiff`, `image/heic`, `image/heif`, `image/avif`
+- supported extensions: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`, `.tif`, `.tiff`, `.heic`, `.heif`, `.avif`
+- file signatures are validated before the image is stored
+- SVG is not allowed by default
+
+Oversized uploads return `413 Payload Too Large`. Invalid file types, mismatched extensions, or mismatched content types return validation errors.
+
+Environment configuration:
+
+```text
+TICKETING_ATTACHMENTS_MAX_SIZE_MB=10
+TICKETING_ATTACHMENTS_MAX_SIZE_BYTES=10485760
+TICKETING_ATTACHMENTS_ALLOWED_CONTENT_TYPES=image/jpeg;image/png;image/webp
+TICKETING_ATTACHMENTS_ALLOWED_EXTENSIONS=.jpg;.jpeg;.png;.webp
+TICKETING_ATTACHMENTS_VALIDATE_IMAGE_SIGNATURES=true
+```
+
+Supported configuration keys:
+
+```text
+Ticketing__Attachments__MaxSizeMegabytes
+Ticketing__Attachments__MaxSizeBytes
+Ticketing__Attachments__AllowedContentTypes
+Ticketing__Attachments__AllowedExtensions
+Ticketing__Attachments__ValidateImageSignatures
+```
+
+`MaxSizeBytes` wins over `MaxSizeMegabytes` when both are configured. The server also applies the same limit to multipart body handling with a small allowance for multipart overhead.
+
 ## Microsoft Graph User Search
 
 When configured, `/api/users` searches Microsoft Graph users with application permissions, then refreshes the local profile cache with returned users.
@@ -368,6 +408,7 @@ Implemented:
 - ticket search endpoint backed by existing projection tables
 - ticket status transition endpoints
 - continuation-token response envelopes for REST list endpoints
+- image-only attachment upload policy with configurable max size and signature validation
 - admin system info and health endpoint
 - teams, members, routing, taxonomy, notes, attachments, and audit foundations
 

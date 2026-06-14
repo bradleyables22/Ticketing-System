@@ -9,6 +9,7 @@ public enum DomainErrorType
 	Forbidden,
 	NotFound,
 	Validation,
+	PayloadTooLarge,
 	Conflict,
 	Unexpected
 }
@@ -67,6 +68,14 @@ public sealed record DomainError
 			Type = DomainErrorType.Validation
 		};
 
+	public static DomainError PayloadTooLarge(string message) =>
+		new()
+		{
+			Code = "payload_too_large",
+			Message = message,
+			Type = DomainErrorType.PayloadTooLarge
+		};
+
 	public static DomainError Conflict(string message) =>
 		new()
 		{
@@ -91,6 +100,7 @@ public sealed record DomainError
 			TicketingForbiddenException forbidden => Forbidden(forbidden.Message),
 			TicketingNotFoundException notFound => NotFound(notFound.ResourceName, notFound.ResourceId, notFound.Message),
 			TicketingValidationException validation => Validation(validation.Message),
+			TicketingPayloadTooLargeException payloadTooLarge => PayloadTooLarge(payloadTooLarge.Message),
 			ArgumentException argument => Validation(argument.Message),
 			KeyNotFoundException keyNotFound => NotFound("Resource", "unknown", keyNotFound.Message),
 			InvalidOperationException invalidOperation => Conflict(invalidOperation.Message),

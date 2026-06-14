@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Ticketing.Auth;
 using Ticketing.Data.Models;
+using Ticketing.Domain.Configuration;
 using Ticketing.Domain.Models;
 using Ticketing.Domain.Services;
 using Ticketing.Rest.Contracts;
@@ -272,12 +273,20 @@ internal static class TicketEndpoints
 		tickets.MapPost("/{ticketId}/attachments", async (
 				string ticketId,
 				IFormFile file,
+				TicketAttachmentUploadOptions attachmentOptions,
 				ITicketWorkflowService ticketWorkflow,
 				CancellationToken cancellationToken) =>
 			{
 				if (file.Length == 0)
 				{
 					return DomainHttpResultMapper.ToProblem(DomainError.Validation("Attachment content is required."));
+				}
+
+				if (file.Length > attachmentOptions.MaxSizeBytes)
+				{
+					return DomainHttpResultMapper.ToProblem(
+						DomainError.PayloadTooLarge(
+							$"Attachment size must be {FormatBytes(attachmentOptions.MaxSizeBytes)} or less."));
 				}
 
 				await using var content = file.OpenReadStream();
@@ -297,6 +306,7 @@ internal static class TicketEndpoints
 					attachment => $"/api/tickets/{attachment.TicketId}/attachments/{attachment.AttachmentId}");
 			})
 			.DisableAntiforgery()
+			.Accepts<IFormFile>("multipart/form-data")
 			.RequireAuthorization(TicketingAuthPolicies.Write)
 			.WithName("UploadTicketAttachment");
 
@@ -556,4 +566,12 @@ internal static class TicketEndpoints
 				ExpectedETag = request.ExpectedETag ?? ifMatch
 			},
 			cancellationToken);
+
+	private static string FormatBytes(long bytes)
+	{
+		const long mebibyte = 1024 * 1024;
+		return bytes >= mebibyte && bytes % mebibyte == 0
+			? $"{bytes / mebibyte} MiB"
+			: $"{bytes:N0} bytes";
+	}
 }
